@@ -1,6 +1,6 @@
 build/
 .build/
-PassboltMenuBar.xcodeproj/xcuserdata/
+PassBar.xcodeproj/xcuserdata/
 *.xcuserstate
 Pgpbridge.xcframework/
 PGPBridge/go.work
