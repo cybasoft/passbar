@@ -18,7 +18,7 @@ public protocol SecretStore: Sendable {
 /// device is unlocked and never migrated to other devices or iCloud.
 public struct KeychainSecretStore: SecretStore {
     private let service: String
-    public init(service: String = "local.passbolt-menubar") { self.service = service }
+    public init(service: String = "com.cybasoft.passbar") { self.service = service }
 
     private func query(_ key: SecretKey) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,

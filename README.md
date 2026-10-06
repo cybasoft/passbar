@@ -1,9 +1,13 @@
-<p align="center"><img src="docs/logo.svg" alt="Passbolt" height="40"></p>
+<p align="center"><img src="docs/icon.svg" alt="PassBar" height="96"></p>
 
-# Passbolt Menu Bar
+# PassBar
 
-A small native macOS menu-bar app (SwiftUI, macOS 14+, Apple Silicon + Intel) to search your
-existing Passbolt (v5, RSA key) vault and copy credentials. No telemetry, no third-party servers.
+**MacOS menubar for Passbolt.** A small native app (SwiftUI, macOS 14+, Apple Silicon + Intel) to
+search your existing Passbolt (v5, RSA key) vault and copy credentials. No telemetry, no third-party
+servers.
+
+> PassBar is an independent, community project. It is not affiliated with, endorsed by, or supported
+> by Passbolt SA. "Passbolt" is a trademark of Passbolt SA.
 
 > Status: written against the Passbolt OpenAPI spec in `open-api-specs.yaml`. It has been unit
 > tested with mock servers and a real OpenPGP round-trip, but **not yet run against a live Passbolt
@@ -15,10 +19,10 @@ Requirements: Xcode 15+, Go (`brew install go`), XcodeGen (`brew install xcodege
 
 ```sh
 ./scripts/build-pgp.sh        # builds Pgpbridge.xcframework from ./PGPBridge (Go + GopenPGP) - local, from source
-xcodegen generate             # creates PassboltMenuBar.xcodeproj from project.yml
-xcodebuild -project PassboltMenuBar.xcodeproj -scheme PassboltMenuBar \
+xcodegen generate             # creates PassBar.xcodeproj from project.yml
+xcodebuild -project PassBar.xcodeproj -scheme PassBar \
   -configuration Release -derivedDataPath build -destination 'generic/platform=macOS' build
-open build/Build/Products/Release/PassboltMenuBar.app
+open build/Build/Products/Release/PassBar.app
 swift test                    # unit tests for the core library
 ```
 
@@ -69,7 +73,7 @@ limits of this). The passphrase is stored so unlock can be biometric.
 ## Clear local credentials
 
 Settings → Security → *Clear Keychain credentials*, or manually delete the Keychain items with
-service `local.passbolt-menubar`, and `defaults delete local.passbolt.menubar`.
+service `com.cybasoft.passbar`, and `defaults delete com.cybasoft.passbar`.
 
 ## Usage
 

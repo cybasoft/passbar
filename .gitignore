@@ -4,5 +4,4 @@ PassBar.xcodeproj/xcuserdata/
 *.xcuserstate
 Pgpbridge.xcframework/
 PGPBridge/go.work
-docs/open-api-specs.yaml
-docs/requirements.md
+.temp

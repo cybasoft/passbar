@@ -35,7 +35,7 @@ final class SecretStoreTests: XCTestCase {
         XCTAssertNil(try s.get(.privateKey))
     }
     func testKeychainRoundTrip() throws {
-        let s = KeychainSecretStore(service: "test.passbolt-menubar.\(UUID().uuidString)")
+        let s = KeychainSecretStore(service: "test.passbar.\(UUID().uuidString)")
         defer { try? s.deleteAll() }
         do { try s.set(Data("dummy".utf8), for: .passphrase) }
         catch { throw XCTSkip("Keychain unavailable in this environment") }

@@ -46,14 +46,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                    quit: { NSApp.terminate(nil) })
     }
 
-    /// Passbolt logo as a template image (adapts to light/dark). Dimmed while locked.
+    /// PassBar glyph as a template image (adapts to light/dark). Dimmed while locked.
     private func updateIcon() {
         let img = NSImage(named: "MenuBarIcon")
-        img?.size = NSSize(width: 18, height: 18)
+        img?.size = NSSize(width: 24, height: 24 * 44 / 92)
         img?.isTemplate = true
         statusItem.button?.image = img
         statusItem.button?.alphaValue = model.state == .unlocked ? 1.0 : 0.45
-        statusItem.button?.setAccessibilityLabel(model.state == .unlocked ? "Passbolt (unlocked)" : "Passbolt (locked)")
+        statusItem.button?.setAccessibilityLabel(model.state == .unlocked ? "PassBar (unlocked)" : "PassBar (locked)")
     }
 
     private func registerHotKey(_ preset: String) {

@@ -1,12 +1,12 @@
-name: PassboltMenuBar
+name: PassBar
 options:
-  bundleIdPrefix: local.passbolt
+  bundleIdPrefix: com.cybasoft
   deploymentTarget: { macOS: "14.0" }
 packages:
   PassboltKit:
     path: .
 targets:
-  PassboltMenuBar:
+  PassBar:
     type: application
     platform: macOS
     sources: [App]
@@ -16,14 +16,14 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleName: Passbolt Menu Bar
-        CFBundleDisplayName: Passbolt Menu Bar
+        CFBundleName: PassBar
+        CFBundleDisplayName: PassBar
         LSUIElement: true            # menu-bar only, no Dock icon
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: "MIT License"
         LSApplicationCategoryType: public.app-category.utilities
     entitlements:
-      path: App/PassboltMenuBar.entitlements
+      path: App/PassBar.entitlements
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true            # talk to the Passbolt server
@@ -31,12 +31,13 @@ targets:
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        PRODUCT_BUNDLE_IDENTIFIER: local.passbolt.menubar
-        MARKETING_VERSION: "0.1.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.cybasoft.passbar
+        MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_STYLE: Automatic
-        CODE_SIGN_IDENTITY: "-"
+        DEVELOPMENT_TEAM: UA5R4WVYA6
+        CODE_SIGN_IDENTITY: "Apple Development"
         SWIFT_VERSION: "5.9"
         ARCHS: "arm64 x86_64"
         ONLY_ACTIVE_ARCH: NO

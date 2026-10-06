@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct PassboltMenuBarApp: App {
+struct PassBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     // The UI lives in an NSStatusItem + NSPopover (see AppDelegate) so the popover
