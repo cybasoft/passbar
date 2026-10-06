@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.svg" alt="Passbolt" height="40"></p>
+
 # Passbolt Menu Bar
 
 A small native macOS menu-bar app (SwiftUI, macOS 14+, Apple Silicon + Intel) to search your
@@ -87,3 +89,8 @@ Tests/          unit tests with mock server responses and throwaway test keys
 ## Reporting vulnerabilities
 
 See [SECURITY.md](SECURITY.md).
+
+## Trademark
+
+This is an unofficial, community client. It is not affiliated with or endorsed by Passbolt SA. The Passbolt
+logo files in `docs/` are Passbolt's trademarks and are not covered by this project's MIT licence.

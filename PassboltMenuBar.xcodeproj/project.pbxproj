@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		03461BAC9DCA1643E75CE6F9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A40C72358EEC26B952C80806 /* Assets.xcassets */; };
 		064F75769D0BB5DEB2D54773 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A4B6B0015783D255E118DF /* AppDelegate.swift */; };
 		1E33E5EC1521C0975E0AC2C1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF15D2D7C0D96D7AF8E31D1 /* SettingsView.swift */; };
 		21D6D344463624ACB158BE67 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B525F7F159825E8E6195DDE /* SearchView.swift */; };
@@ -27,6 +28,7 @@
 		8AC05F51678B3C959441BB9B /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		8DF15D2D7C0D96D7AF8E31D1 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A255A6CA8FF65FE9D25DF2E3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		A40C72358EEC26B952C80806 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A96DBFC29919F29A782486D8 /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
 		B385DDBEC7C799E499AEAE40 /* passbolt */ = {isa = PBXFileReference; lastKnownFileType = folder; name = passbolt; path = .; sourceTree = SOURCE_ROOT; };
 		D4DC53851535C2AD96EBAA1D /* PassboltMenuBar.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PassboltMenuBar.entitlements; sourceTree = "<group>"; };
@@ -57,6 +59,7 @@
 			isa = PBXGroup;
 			children = (
 				38A4B6B0015783D255E118DF /* AppDelegate.swift */,
+				A40C72358EEC26B952C80806 /* Assets.xcassets */,
 				A96DBFC29919F29A782486D8 /* DetailView.swift */,
 				7BECCBCD6296309685727DAA /* HotKeyManager.swift */,
 				A255A6CA8FF65FE9D25DF2E3 /* Info.plist */,
@@ -95,6 +98,7 @@
 			buildConfigurationList = 12B5AAFDB58C9602B53DF211 /* Build configuration list for PBXNativeTarget "PassboltMenuBar" */;
 			buildPhases = (
 				66BEE3F802F2D63E807B46A3 /* Sources */,
+				7644B71425026D621F247ADD /* Resources */,
 				9A390B90239FBE1625EB793D /* Frameworks */,
 			);
 			buildRules = (
@@ -144,6 +148,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7644B71425026D621F247ADD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				03461BAC9DCA1643E75CE6F9 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		66BEE3F802F2D63E807B46A3 /* Sources */ = {
