@@ -1,0 +1,41 @@
+name: PassboltMenuBar
+options:
+  bundleIdPrefix: local.passbolt
+  deploymentTarget: { macOS: "14.0" }
+packages:
+  PassboltKit:
+    path: .
+targets:
+  PassboltMenuBar:
+    type: application
+    platform: macOS
+    sources: [App]
+    dependencies:
+      - package: PassboltKit
+        product: PassboltKit
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleName: Passbolt Menu Bar
+        CFBundleDisplayName: Passbolt Menu Bar
+        LSUIElement: true            # menu-bar only, no Dock icon
+        LSMinimumSystemVersion: "14.0"
+        NSHumanReadableCopyright: "MIT License"
+        LSApplicationCategoryType: public.app-category.utilities
+    entitlements:
+      path: App/PassboltMenuBar.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true            # talk to the Passbolt server
+        com.apple.security.files.user-selected.read-only: true  # import key file chosen by the user
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: local.passbolt.menubar
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        SWIFT_VERSION: "5.9"
+        ARCHS: "arm64 x86_64"
+        ONLY_ACTIVE_ARCH: NO
