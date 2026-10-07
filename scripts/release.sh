@@ -28,7 +28,7 @@ xcodebuild -project PassBar.xcodeproj -scheme PassBar -configuration Release \
   -derivedDataPath build/DerivedData -destination 'generic/platform=macOS' \
   MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$(git rev-list --count HEAD)" \
   CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Developer ID Application" DEVELOPMENT_TEAM=$TEAM \
-  OTHER_CODE_SIGN_FLAGS="--timestamp" build
+  OTHER_CODE_SIGN_FLAGS="--timestamp" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO build
 cp -R build/DerivedData/Build/Products/Release/PassBar.app "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
