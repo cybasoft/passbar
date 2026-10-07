@@ -178,6 +178,47 @@ final class AppModelTests: XCTestCase {
         XCTAssertNil(m.detail)
     }
 
+    func testManualLockDoesNotRequestAutoPrompt() async {
+        let m = makeModel()
+        await m.configure(serverURL: "https://passbolt.example", userId: uid, privateKey: "PRIV:user", passphrase: "p")
+        await m.lock()
+        XCTAssertFalse(m.shouldAutoPromptUnlock)
+    }
+
+    func testDefaultListShowsRecentsFirstAndCapsAt25() {
+        let all = (0..<60).map { PassboltResource(id: "\($0)", name: "n\($0)") }
+        let list = AppModel.limited(all, query: "", recents: ["40", "missing", "7"])
+        XCTAssertEqual(list.count, ResourceSearch.listLimit)
+        XCTAssertEqual(list.prefix(3).map(\.id), ["40", "7", "0"])
+        XCTAssertEqual(AppModel.limited(all, query: "n", recents: ["40"]).map(\.id), (0..<25).map(String.init))
+    }
+
+    func testSelectRecordsRecentAndCapsHistory() async throws {
+        let m = makeModel()
+        await m.configure(serverURL: "https://passbolt.example", userId: uid, privateKey: "PRIV:user", passphrase: "p")
+        try await Task.sleep(nanoseconds: 50_000_000)
+        let r = try XCTUnwrap(m.results.first { $0.id == "r1" })
+        await m.select(r)
+        XCTAssertEqual(m.preferences.recentResourceIds.first, r.id)
+        for i in 0..<40 { m.preferences.recordRecent("x\(i)") }
+        XCTAssertEqual(m.preferences.recentResourceIds.count, ResourceSearch.listLimit)
+    }
+
+    func testCreateValidatesAndSucceeds() async throws {
+        let m = makeModel()
+        await m.configure(serverURL: "https://passbolt.example", userId: uid, privateKey: "PRIV:user", passphrase: "p")
+        m.isCreating = true
+        let blank = await m.createResource(NewResource(name: "", password: ""))
+        XCTAssertFalse(blank)
+        let badTotp = await m.createResource(NewResource(name: "a", password: "b", totpSecret: "!!"))
+        XCTAssertFalse(badTotp)
+        XCTAssertEqual(m.errorMessage, "The TOTP key is not valid.")
+        let ok = await m.createResource(NewResource(name: "a", password: "b"))
+        XCTAssertTrue(ok)
+        XCTAssertFalse(m.isCreating)
+        XCTAssertEqual(m.preferences.recentResourceIds.first, "new-1")
+    }
+
     func testClearKeychainResetsEverything() async {
         let store = InMemorySecretStore()
         let m = makeModel(store: store)

@@ -52,6 +52,7 @@ final class MockTransport: HTTPTransport, @unchecked Sendable {
             let reply = String(data: try JSONSerialization.data(withJSONObject: challenge), encoding: .utf8)!
             return try wrap(["challenge": MockPGP.encrypt(reply, to: "user")])
         }
+        if request.httpMethod == "POST", path == "/resources.json" { return try wrap(["id": "new-1"]) }
         guard let (status, body) = routes[path] else { return (Data(), 404) }
         return status == 200 ? try wrap(body) : (Data(), status)
     }
@@ -63,9 +64,12 @@ final class MockTransport: HTTPTransport, @unchecked Sendable {
     static func standard() -> MockTransport {
         let t = MockTransport()
         t.routes["/auth/verify.json"] = (200, ["fingerprint": "AABB", "keydata": "PUB:server"])
-        t.routes["/resource-types.json"] = (200, [["id": "t1", "slug": "v5-default"], ["id": "t2", "slug": "v5-password-string"]])
+        t.routes["/resource-types.json"] = (200, [["id": "t1", "slug": "v5-default"], ["id": "t2", "slug": "v5-password-string"],
+                                                   ["id": "t3", "slug": "v5-default-with-totp"]])
+        t.routes["/users/me.json"] = (200, ["id": "u1", "gpgkey": ["armored_key": "PUB:user"]])
         t.routes["/metadata/keys.json"] = (200, [[
             "id": "mk1",
+            "armored_key": "PUB:shared", "expired": NSNull(), "deleted": NSNull(),
             "metadata_private_keys": [["data": MockPGP.encrypt(#"{"armored_key":"PRIV:shared","passphrase":""}"#, to: "user")]],
         ]])
         t.routes["/resources.json"] = (200, [

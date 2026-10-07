@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         popover.behavior = .transient
         popover.delegate = self
-        popover.contentSize = NSSize(width: 400, height: 460)
+        popover.contentSize = NSSize(width: 360, height: 480)
         popover.contentViewController = NSHostingController(rootView: RootView(model: model, actions: actions))
 
         model.$state.sink { [weak self] _ in self?.updateIcon() }.store(in: &cancellables)
@@ -43,7 +43,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var actions: AppActions {
         AppActions(close: { [weak self] in self?.popover.performClose(nil) },
                    openSettings: { [weak self] in self?.showSettings() },
+                   openServer: { [weak self] in self?.openServer() },
                    quit: { NSApp.terminate(nil) })
+    }
+
+    private func openServer() {
+        guard let url = URL(string: model.preferences.serverURL), url.scheme == "https" else { return }
+        popover.performClose(nil)
+        NSWorkspace.shared.open(url)
     }
 
     /// PassBar glyph as a template image (adapts to light/dark). Dimmed while locked.
@@ -76,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.performClose(nil)
         if settingsWindow == nil {
             let w = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: model)))
-            w.title = "Passbolt Settings"
+            w.title = "PassBar Settings"
             w.styleMask = [.titled, .closable]
             w.isReleasedWhenClosed = false
             settingsWindow = w
@@ -90,5 +97,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 struct AppActions {
     var close: () -> Void
     var openSettings: () -> Void
+    var openServer: () -> Void
     var quit: () -> Void
 }

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0A00E12F6655C7542487D84D /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45B276C2F0489F54E084C297 /* DetailView.swift */; };
 		0DF82960329558FCD23AB142 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65274EC47D6A35DD53E05044 /* AppDelegate.swift */; };
+		7C1A2B3D4E5F60718293A4B5 /* CreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1A2B3D4E5F60718293A4B6 /* CreateView.swift */; };
 		11C1363A8D227ED2D0EE55DE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 708104FFE13C404315DB45E5 /* Assets.xcassets */; };
 		208652E021D9B3D280C5E6A0 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C5BDC0B3F0049A334C44F66 /* SearchView.swift */; };
 		456E629A4F5E1EA44191F76F /* HotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6681714BCAAB02D7D98708DD /* HotKeyManager.swift */; };
@@ -23,6 +24,7 @@
 		00D74A3526E7B9E3F338ADD4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2BDE0B1ED21D4ED0F92A34C1 /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		2FDF2A3B7903BBB21143CF50 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7C1A2B3D4E5F60718293A4B6 /* CreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateView.swift; sourceTree = "<group>"; };
 		38CFAFB2D5723E5180DE29A7 /* PassBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassBarApp.swift; sourceTree = "<group>"; };
 		43C8B071CB94B2377E74C816 /* PassBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PassBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		45B276C2F0489F54E084C297 /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
@@ -68,6 +70,7 @@
 			children = (
 				65274EC47D6A35DD53E05044 /* AppDelegate.swift */,
 				708104FFE13C404315DB45E5 /* Assets.xcassets */,
+				7C1A2B3D4E5F60718293A4B6 /* CreateView.swift */,
 				45B276C2F0489F54E084C297 /* DetailView.swift */,
 				6681714BCAAB02D7D98708DD /* HotKeyManager.swift */,
 				2FDF2A3B7903BBB21143CF50 /* Info.plist */,
@@ -167,6 +170,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0DF82960329558FCD23AB142 /* AppDelegate.swift in Sources */,
+				7C1A2B3D4E5F60718293A4B5 /* CreateView.swift in Sources */,
 				0A00E12F6655C7542487D84D /* DetailView.swift in Sources */,
 				456E629A4F5E1EA44191F76F /* HotKeyManager.swift in Sources */,
 				C5024453CCF7A964D6C46216 /* PassBarApp.swift in Sources */,

@@ -101,4 +101,45 @@ final class ClientTests: XCTestCase {
         XCTAssertTrue(t.requests.contains { $0.url?.path == "/auth/jwt/logout.json" })
         do { _ = try await c.loadResources(); XCTFail() } catch { XCTAssertEqual(error as? PassboltError, .notConfigured) }
     }
+
+    func testCreateV5EncryptsMetadataAndSecret() async throws {
+        let t = MockTransport.standard()
+        let c = try makeClient(t)
+        try await c.unlock(privateKey: "PRIV:user", passphrase: "x")
+        try await c.authenticate()
+        _ = try await c.loadResources()
+        let r = try await c.createResource(NewResource(name: "Site", uri: "https://s.example", username: "me",
+                                                      password: "hunter2", totpSecret: "GEZDGNBVGY3TQOJQ", notes: "n"))
+        XCTAssertEqual(r.id, "new-1")
+        let post = try XCTUnwrap(t.requests.last { $0.httpMethod == "POST" && $0.url?.path == "/resources.json" })
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: post.httpBody!) as? [String: Any])
+        XCTAssertEqual(body["resource_type_id"] as? String, "t3")
+        XCTAssertEqual(body["metadata_key_id"] as? String, "mk1")
+        XCTAssertEqual(body["metadata_key_type"] as? String, "shared_key")
+        let meta = try XCTUnwrap(MockPGP.decode(body["metadata"] as! String))
+        XCTAssertEqual(meta.owner, "shared")
+        let metaJSON = try XCTUnwrap(JSONSerialization.jsonObject(with: meta.plain) as? [String: Any])
+        XCTAssertEqual(metaJSON["name"] as? String, "Site")
+        XCTAssertEqual(metaJSON["uris"] as? [String], ["https://s.example"])
+        let secrets = try XCTUnwrap(body["secrets"] as? [[String: String]])
+        XCTAssertEqual(secrets.first?["user_id"], "u1")
+        let secret = try XCTUnwrap(MockPGP.decode(secrets[0]["data"]!))
+        XCTAssertEqual(secret.owner, "user")
+        let secretJSON = try XCTUnwrap(JSONSerialization.jsonObject(with: secret.plain) as? [String: Any])
+        XCTAssertEqual(secretJSON["password"] as? String, "hunter2")
+        XCTAssertNotNil(secretJSON["totp"])
+        let all = await c.searchResources(query: "Site")
+        XCTAssertEqual(all.first?.id, "new-1")
+    }
+
+    func testCreateUnsupportedWithoutKnownType() async throws {
+        let t = MockTransport.standard()
+        t.routes["/resource-types.json"] = (200, [["id": "t9", "slug": "totp"]])
+        let c = try makeClient(t)
+        try await c.unlock(privateKey: "PRIV:user", passphrase: "x")
+        try await c.authenticate()
+        _ = try await c.loadResources()
+        do { _ = try await c.createResource(NewResource(name: "a", password: "b")); XCTFail() }
+        catch { XCTAssertEqual(error as? PassboltError, .createUnsupported) }
+    }
 }

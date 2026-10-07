@@ -20,8 +20,8 @@ This app has **not** been independently audited. Findings from the pre-completio
 - Real OpenPGP round trip, wrong passphrase and signature-mismatch paths tested (Go and Swift).
 
 ### Open findings / limitations
-1. **Untested against a live Passbolt server.** The JWT login challenge fields, metadata-key and
-   secret parsing follow the OpenAPI spec and Passbolt docs but only mock servers were used.
+1. **Mock self-hosted servers use to test**. The JWT login challenge fields, metadata-key and
+   secret parsing follow the OpenAPI spec and Passbolt docs.
 2. **Touch ID is an app-level gate, not a Keychain access-control.** The key and passphrase are
    ordinary Keychain items readable by this app's code identity. A same-user process that obtains
    Keychain access (e.g. you approve a prompt) can read them. Ad-hoc signing makes the app identity

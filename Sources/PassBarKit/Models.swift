@@ -14,6 +14,22 @@ public struct PassboltResource: Identifiable, Equatable, Sendable {
     }
 }
 
+/// Input for creating a credential. Held in memory only until it is encrypted and sent.
+public struct NewResource: Sendable {
+    public var name: String
+    public var uri: String
+    public var username: String
+    public var password: String
+    public var totpSecret: String
+    public var notes: String
+
+    public init(name: String = "", uri: String = "", username: String = "", password: String = "",
+                totpSecret: String = "", notes: String = "") {
+        self.name = name; self.uri = uri; self.username = username; self.password = password
+        self.totpSecret = totpSecret; self.notes = notes
+    }
+}
+
 public struct TOTPParameters: Equatable, Sendable {
     public var secretKey: String
     public var algorithm: String
@@ -38,6 +54,9 @@ public struct ResourceSecret: Equatable, Sendable {
 
 /// Pure, in-memory search over resource metadata (name, username, URL).
 public enum ResourceSearch {
+    /// Maximum rows shown for the default view and for search results.
+    public static let listLimit = 25
+
     public static func filter(_ resources: [PassboltResource], query: String) -> [PassboltResource] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
         let sorted = resources.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }

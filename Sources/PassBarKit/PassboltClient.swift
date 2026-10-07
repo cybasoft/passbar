@@ -9,6 +9,8 @@ public protocol PassboltClient: Sendable {
     func loadResources() async throws -> [PassboltResource]
     func searchResources(query: String) async -> [PassboltResource]
     func getSecret(for resource: PassboltResource) async throws -> ResourceSecret
+    /// Encrypts and stores a new credential; the result is added to the in-memory index.
+    func createResource(_ draft: NewResource) async throws -> PassboltResource
     /// Wipes keys, tokens and the metadata index; best-effort server logout.
     func lock() async
     var serverFingerprint: String? { get async }
@@ -21,6 +23,8 @@ public protocol PassboltClient: Sendable {
 ///  GET  /resource-types.json
 ///  GET  /metadata/keys.json          shared metadata keys (v5)
 ///  GET  /resources.json
+///  POST /resources.json
+///  GET  /users/me.json
 ///  GET  /secrets/resource/{id}.json
 ///
 /// SECURITY CRITICAL: handles tokens, the unlocked private key and decrypted
@@ -34,6 +38,8 @@ public actor PassboltAPIClient: PassboltClient {
 
     private var userKey: PGPKeyHandle?
     private var metadataKeys: [String: PGPKeyHandle] = [:]
+    /// Newest usable shared metadata key (public half), used to encrypt new v5 metadata.
+    private var sharedMetadataKey: (id: String, armored: String)?
     private var accessToken: String?
     private var refreshToken: String?
     private var typeSlugs: [String: String] = [:]
@@ -65,7 +71,7 @@ public actor PassboltAPIClient: PassboltClient {
         let refresh = refreshToken
         let access = accessToken
         userKey?.close(); userKey = nil
-        metadataKeys.values.forEach { $0.close() }; metadataKeys = [:]
+        metadataKeys.values.forEach { $0.close() }; metadataKeys = [:]; sharedMetadataKey = nil
         accessToken = nil; refreshToken = nil
         index = []; typeSlugs = [:]
         if let refresh, let access {   // best effort, errors ignored
@@ -122,7 +128,21 @@ public actor PassboltAPIClient: PassboltClient {
     private struct ResourceType: Decodable { let id: String; let slug: String }
     private struct MetadataKeyDTO: Decodable {
         let id: String
+        let armored_key: String?
+        let expired: String?
+        let deleted: String?
         let metadata_private_keys: [PrivateKeyDTO]?
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(String.self, forKey: .id)
+            metadata_private_keys = try c.decodeIfPresent([PrivateKeyDTO].self, forKey: .metadata_private_keys)
+            // Tolerate unexpected shapes so an odd value never hides the key itself.
+            armored_key = try? c.decodeIfPresent(String.self, forKey: .armored_key)
+            expired = try? c.decodeIfPresent(String.self, forKey: .expired)
+            deleted = try? c.decodeIfPresent(String.self, forKey: .deleted)
+        }
+        private enum CodingKeys: String, CodingKey { case id, armored_key, expired, deleted, metadata_private_keys }
     }
     private struct PrivateKeyDTO: Decodable { let data: String? }
     private struct MetadataPrivateKey: Decodable { let armored_key: String; let passphrase: String? }
@@ -167,7 +187,7 @@ public actor PassboltAPIClient: PassboltClient {
     }
 
     private func loadMetadataKeys(userKey: PGPKeyHandle) async throws {
-        metadataKeys.values.forEach { $0.close() }; metadataKeys = [:]
+        metadataKeys.values.forEach { $0.close() }; metadataKeys = [:]; sharedMetadataKey = nil
         // v4-only servers may not offer this; treat failure as "no shared keys".
         guard let dtos: [MetadataKeyDTO] = try? await get("/metadata/keys.json?contain[metadata_private_keys]=1",
                                                           failure: .invalidResponse) else { return }
@@ -178,6 +198,9 @@ public actor PassboltAPIClient: PassboltClient {
                   let handle = try? pgp.openKey(armored: pk.armored_key, passphrase: pk.passphrase ?? "")
             else { continue }
             metadataKeys[dto.id] = handle
+            if sharedMetadataKey == nil, dto.deleted == nil, dto.expired == nil, let pub = dto.armored_key {
+                sharedMetadataKey = (dto.id, pub)
+            }
         }
     }
 
@@ -238,6 +261,63 @@ public actor PassboltAPIClient: PassboltClient {
         return ResourceSecret(password: text)
     }
 
+    // MARK: Create
+
+    private struct MeDTO: Decodable { let gpgkey: GpgKeyDTO? }
+    private struct GpgKeyDTO: Decodable { let armored_key: String }
+    private struct CreatedDTO: Decodable { let id: String }
+
+    /// SECURITY CRITICAL: encrypts new credential material for the server. Prefers the v5 format
+    /// (metadata encrypted with the shared metadata key) and falls back to the v4 types.
+    public func createResource(_ draft: NewResource) async throws -> PassboltResource {
+        guard let key = userKey else { throw PassboltError.notConfigured }
+        let totp: [String: Any]? = draft.totpSecret.isEmpty ? nil
+            : ["secret_key": draft.totpSecret, "algorithm": "SHA1", "digits": 6, "period": 30]
+        func typeId(_ slug: String) -> String? { typeSlugs.first { $0.value == slug }?.key }
+
+        let me: MeDTO = try await get("/users/me.json?contain[gpgkey]=1", failure: .invalidResponse)
+        guard let ownKey = me.gpgkey?.armored_key else { throw PassboltError.invalidResponse }
+
+        var secret: [String: Any] = ["password": draft.password]
+        var body: [String: Any] = ["expired": NSNull(), "folder_parent_id": NSNull()]
+        let typeIdUsed: String
+
+        if let shared = sharedMetadataKey, let tid = typeId(totp == nil ? "v5-default" : "v5-default-with-totp") {
+            typeIdUsed = tid
+            secret["object_type"] = "PASSBOLT_SECRET_DATA"
+            var metadata: [String: Any] = ["object_type": "PASSBOLT_RESOURCE_METADATA", "resource_type_id": tid,
+                                           "name": draft.name, "username": draft.username,
+                                           "uris": draft.uri.isEmpty ? [] : [draft.uri]]
+            if !draft.notes.isEmpty { metadata["description"] = draft.notes }
+            body["metadata"] = try key.signAndEncrypt(try JSONSerialization.data(withJSONObject: metadata), to: shared.armored)
+            body["metadata_key_id"] = shared.id
+            body["metadata_key_type"] = "shared_key"
+        } else if let tid = typeId(totp == nil ? "password-and-description" : "password-description-totp") {
+            typeIdUsed = tid
+            secret["description"] = draft.notes
+            body["name"] = draft.name; body["username"] = draft.username; body["uri"] = draft.uri
+        } else {
+            throw PassboltError.createUnsupported
+        }
+        if let totp { secret["totp"] = totp }
+        body["resource_type_id"] = typeIdUsed
+        let encryptedSecret = try key.signAndEncrypt(try JSONSerialization.data(withJSONObject: secret), to: ownKey)
+        body["secrets"] = [["user_id": userId, "data": encryptedSecret]]
+
+        let (data, status) = try await send("POST", "/resources.json", body: body, token: accessToken)
+        switch status {
+        case 200, 201: break
+        case 401: throw PassboltError.authenticationExpired
+        case 400: throw PassboltError.invalidResponse
+        default: throw PassboltError.serverError(status)
+        }
+        let created = try decodeBody(CreatedDTO.self, from: data)
+        let resource = PassboltResource(id: created.id, name: draft.name, username: draft.username,
+                                        uri: draft.uri, resourceTypeId: typeIdUsed)
+        index.append(resource)
+        return resource
+    }
+
     // MARK: HTTP helpers
 
     private struct Envelope<T: Decodable>: Decodable { let body: T }
@@ -258,7 +338,7 @@ public actor PassboltAPIClient: PassboltClient {
         }
     }
 
-    private func send(_ method: String, _ path: String, body: [String: String]?, token: String?) async throws -> (Data, Int) {
+    private func send(_ method: String, _ path: String, body: Any?, token: String?) async throws -> (Data, Int) {
         guard let url = URL(string: baseURL.absoluteString.trimmingSuffix("/") + path) else { throw PassboltError.invalidServerURL }
         var req = URLRequest(url: url)
         req.httpMethod = method

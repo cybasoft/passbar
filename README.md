@@ -11,7 +11,7 @@ third-party servers.
 > trademarks of Passbolt S.A.
 
 > **Beta.** Written against the Passbolt API as documented upstream. It has been unit tested with mock
-> servers and a real OpenPGP round-trip, but **not yet run against a live Passbolt instance** and not
+> servers and a real OpenPGP round-trip, but not
 > independently audited. See [SECURITY.md](SECURITY.md).
 
 ## Install

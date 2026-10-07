@@ -19,6 +19,10 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var errorMessage: String?
     @Published public private(set) var isLoading = false
     @Published public private(set) var copiedField: String?
+    /// Shows the new-credential form in place of the list.
+    @Published public var isCreating = false
+    /// True only until the first unlock attempt: after any lock the user must unlock explicitly.
+    public private(set) var shouldAutoPromptUnlock = true
 
     public let preferences: Preferences
     private let store: SecretStore
@@ -68,6 +72,7 @@ public final class AppModel: ObservableObject {
     // MARK: Lock / unlock
 
     public func unlock() async {
+        shouldAutoPromptUnlock = false
         guard state == .locked else { return }
         errorMessage = nil
         state = .unlocking
@@ -101,9 +106,10 @@ public final class AppModel: ObservableObject {
     }
 
     public func lock() async {
+        shouldAutoPromptUnlock = false
         inactivityTask?.cancel(); inactivityTask = nil
         clipboard.clearIfUnchanged()
-        detail = nil; results = []; query = ""
+        detail = nil; results = []; query = ""; isCreating = false
         let c = client; client = nil
         await c?.lock()
         if state != .unconfigured { state = .locked }
@@ -135,11 +141,22 @@ public final class AppModel: ObservableObject {
     private func refreshResults() {
         guard state == .unlocked, let client else { results = []; return }
         let q = query
+        let recents = preferences.recentResourceIds
         Task { [weak self] in
             let r = await client.searchResources(query: q)
             guard let self, self.query == q else { return }
-            self.results = r
+            self.results = Self.limited(r, query: q, recents: recents)
         }
+    }
+
+    /// Empty query: recently opened first, then the rest alphabetically. Always capped.
+    static func limited(_ all: [PassboltResource], query: String, recents: [String]) -> [PassboltResource] {
+        let limit = ResourceSearch.listLimit
+        guard query.trimmingCharacters(in: .whitespaces).isEmpty else { return Array(all.prefix(limit)) }
+        let byId = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let recent = recents.compactMap { byId[$0] }
+        let recentIds = Set(recent.map(\.id))
+        return Array((recent + all.filter { !recentIds.contains($0.id) }).prefix(limit))
     }
 
     public func select(_ resource: PassboltResource) async {
@@ -147,13 +164,39 @@ public final class AppModel: ObservableObject {
         guard let client else { return }
         do {
             detail = ResourceDetail(resource: resource, secret: try await client.getSecret(for: resource))
+            preferences.recordRecent(resource.id)
         } catch {
             errorMessage = message(for: error)
         }
     }
 
+    /// Creates a credential. Returns true on success.
+    public func createResource(_ draft: NewResource) async -> Bool {
+        touch(); errorMessage = nil
+        guard let client else { return false }
+        var d = draft
+        d.name = d.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        d.uri = d.uri.trimmingCharacters(in: .whitespacesAndNewlines)
+        d.username = d.username.trimmingCharacters(in: .whitespacesAndNewlines)
+        d.totpSecret = d.totpSecret.filter { !$0.isWhitespace }.uppercased()
+        guard !d.name.isEmpty, !d.password.isEmpty else { errorMessage = "Name and password are required."; return false }
+        if !d.totpSecret.isEmpty, TOTP.code(for: TOTPParameters(secretKey: d.totpSecret)) == nil {
+            errorMessage = "The TOTP key is not valid."; return false
+        }
+        do {
+            let r = try await client.createResource(d)
+            preferences.recordRecent(r.id)
+            isCreating = false
+            refreshResults()
+            return true
+        } catch {
+            errorMessage = message(for: error)
+            return false
+        }
+    }
+
     /// Drops decrypted data from memory (called on back / popover close).
-    public func clearDetail() { detail = nil; copiedField = nil }
+    public func clearDetail() { detail = nil; copiedField = nil; isCreating = false; refreshResults() }
 
     // MARK: Copy
 

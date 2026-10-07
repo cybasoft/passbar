@@ -14,6 +14,8 @@ public final class Preferences: ObservableObject {
     /// Minutes of inactivity before locking; 0 = never.
     @Published public var autoLockMinutes: Double { didSet { defaults.set(autoLockMinutes, forKey: "autoLockMinutes") } }
     @Published public var hotKey: String { didSet { defaults.set(hotKey, forKey: "hotKey") } }
+    /// Most recently opened resource IDs (non-secret), newest first.
+    public private(set) var recentResourceIds: [String] { didSet { defaults.set(recentResourceIds, forKey: "recentResourceIds") } }
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -24,9 +26,14 @@ public final class Preferences: ObservableObject {
         clipboardTimeout = defaults.object(forKey: "clipboardTimeout") as? Double ?? 30
         autoLockMinutes = defaults.object(forKey: "autoLockMinutes") as? Double ?? 5
         hotKey = defaults.string(forKey: "hotKey") ?? "ctrl-opt-space"
+        recentResourceIds = defaults.stringArray(forKey: "recentResourceIds") ?? []
+    }
+
+    public func recordRecent(_ id: String, limit: Int = ResourceSearch.listLimit) {
+        recentResourceIds = Array(([id] + recentResourceIds.filter { $0 != id }).prefix(limit))
     }
 
     public func resetAccount() {
-        serverFingerprint = ""; keyFingerprint = ""
+        serverFingerprint = ""; keyFingerprint = ""; recentResourceIds = []
     }
 }

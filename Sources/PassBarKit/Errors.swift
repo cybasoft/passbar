@@ -18,6 +18,7 @@ public enum PassboltError: Error, Equatable, LocalizedError {
     case biometricsFailed
     case keychain(Int32)
     case notFound
+    case createUnsupported
 
     public var errorDescription: String? {
         switch self {
@@ -36,6 +37,7 @@ public enum PassboltError: Error, Equatable, LocalizedError {
         case .biometricsFailed: return "Unlock was cancelled or failed."
         case .keychain(let status): return "Keychain error (\(status))."
         case .notFound: return "Resource not found."
+        case .createUnsupported: return "This Passbolt server does not allow creating this kind of resource from here."
         }
     }
 }

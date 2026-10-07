@@ -12,12 +12,13 @@ struct RootView: View {
             case .locked, .unlocking: LockedView(model: model)
             case .unlocked:
                 if let detail = model.detail { DetailView(model: model, detail: detail) }
+                else if model.isCreating { CreateView(model: model) }
                 else { SearchView(model: model, actions: actions) }
             }
             if let err = model.errorMessage { ErrorBar(message: err) { model.dismissError() } }
             FooterBar(model: model, actions: actions)
         }
-        .frame(width: 400, height: 460)
+        .frame(width: 360, height: 480)
         .onExitCommand { actions.close() }
         .background(shortcuts)
     }
@@ -69,7 +70,7 @@ struct LockedView: View {
         VStack(spacing: 12) {
             Spacer()
             Image(systemName: "lock.fill").font(.system(size: 40)).foregroundStyle(.secondary)
-            Text("Passbolt").font(.title2.bold())
+            Text("PassBar").font(.title2.bold())
             Text("Unlock to search your vault.").foregroundStyle(.secondary)
             if model.state == .unlocking {
                 ProgressView(model.isLoading ? "Loading vault…" : "Unlocking…")
@@ -80,6 +81,7 @@ struct LockedView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
-        .task { if model.state == .locked { await model.unlock() } }
+        // Only the first launch prompts by itself; after any lock the user unlocks explicitly.
+        .task { if model.state == .locked && model.shouldAutoPromptUnlock { await model.unlock() } }
     }
 }
