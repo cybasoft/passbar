@@ -25,14 +25,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.target = self
         statusItem.button?.action = #selector(togglePopover)
-        updateIcon()
+        updateIcon(model.state)
 
         popover.behavior = .transient
         popover.delegate = self
         popover.contentSize = NSSize(width: 360, height: 480)
         popover.contentViewController = NSHostingController(rootView: RootView(model: model, actions: actions))
 
-        model.$state.sink { [weak self] _ in self?.updateIcon() }.store(in: &cancellables)
+        model.$state.sink { [weak self] in self?.updateIcon($0) }.store(in: &cancellables)
         model.preferences.$hotKey.sink { [weak self] in self?.registerHotKey($0) }.store(in: &cancellables)
     }
 
@@ -54,13 +54,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     /// PassBar glyph as a template image (adapts to light/dark). Dimmed while locked.
-    private func updateIcon() {
+    private func updateIcon(_ state: LockState) {
         let img = NSImage(named: "MenuBarIcon")
         img?.size = NSSize(width: 18, height: 18)
         img?.isTemplate = true
         statusItem.button?.image = img
-        statusItem.button?.alphaValue = model.state == .unlocked ? 1.0 : 0.45
-        statusItem.button?.setAccessibilityLabel(model.state == .unlocked ? "PassBar (unlocked)" : "PassBar (locked)")
+        statusItem.button?.alphaValue = state == .unlocked ? 1.0 : 0.45
+        statusItem.button?.setAccessibilityLabel(state == .unlocked ? "PassBar (unlocked)" : "PassBar (locked)")
     }
 
     private func registerHotKey(_ preset: String) {
