@@ -4,12 +4,12 @@ import PackageDescription
 // The only dependency is Pgpbridge.xcframework, built LOCALLY from ./PGPBridge
 // (Go, wrapping ProtonMail GopenPGP) by scripts/build-pgp.sh. No remote binaries.
 let package = Package(
-    name: "PassboltKit",
+    name: "PassBarKit",
     platforms: [.macOS(.v14)],
-    products: [.library(name: "PassboltKit", targets: ["PassboltKit"])],
+    products: [.library(name: "PassBarKit", targets: ["PassBarKit"])],
     targets: [
         .binaryTarget(name: "Pgpbridge", path: "Pgpbridge.xcframework"),
-        .target(name: "PassboltKit", dependencies: ["Pgpbridge"]),
-        .testTarget(name: "PassboltKitTests", dependencies: ["PassboltKit"]),
+        .target(name: "PassBarKit", dependencies: ["Pgpbridge"]),
+        .testTarget(name: "PassBarKitTests", dependencies: ["PassBarKit"]),
     ]
 )

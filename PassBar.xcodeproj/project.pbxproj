@@ -16,7 +16,7 @@
 		B3169F2C56120CE7600766D4 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BDE0B1ED21D4ED0F92A34C1 /* SetupView.swift */; };
 		C5024453CCF7A964D6C46216 /* PassBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38CFAFB2D5723E5180DE29A7 /* PassBarApp.swift */; };
 		ED8D072397593BC660A35C52 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D74A3526E7B9E3F338ADD4 /* SettingsView.swift */; };
-		FE1C9931598E8FCCF3F60A37 /* PassboltKit in Frameworks */ = {isa = PBXBuildFile; productRef = BF83F3CEB5830592AD6C283A /* PassboltKit */; };
+		FE1C9931598E8FCCF3F60A37 /* PassBarKit in Frameworks */ = {isa = PBXBuildFile; productRef = BF83F3CEB5830592AD6C283A /* PassBarKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,7 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FE1C9931598E8FCCF3F60A37 /* PassboltKit in Frameworks */,
+				FE1C9931598E8FCCF3F60A37 /* PassBarKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -107,7 +107,7 @@
 			);
 			name = PassBar;
 			packageProductDependencies = (
-				BF83F3CEB5830592AD6C283A /* PassboltKit */,
+				BF83F3CEB5830592AD6C283A /* PassBarKit */,
 			);
 			productName = PassBar;
 			productReference = 43C8B071CB94B2377E74C816 /* PassBar.app */;
@@ -380,9 +380,9 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		BF83F3CEB5830592AD6C283A /* PassboltKit */ = {
+		BF83F3CEB5830592AD6C283A /* PassBarKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = PassboltKit;
+			productName = PassBarKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

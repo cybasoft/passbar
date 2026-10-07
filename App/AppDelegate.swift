@@ -1,6 +1,6 @@
 import SwiftUI
 import Combine
-import PassboltKit
+import PassBarKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {

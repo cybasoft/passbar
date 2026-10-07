@@ -3,7 +3,7 @@ options:
   bundleIdPrefix: com.cybasoft
   deploymentTarget: { macOS: "14.0" }
 packages:
-  PassboltKit:
+  PassBarKit:
     path: .
 targets:
   PassBar:
@@ -11,8 +11,8 @@ targets:
     platform: macOS
     sources: [App]
     dependencies:
-      - package: PassboltKit
-        product: PassboltKit
+      - package: PassBarKit
+        product: PassBarKit
     info:
       path: App/Info.plist
       properties:

@@ -1,6 +1,6 @@
 import SwiftUI
 import ServiceManagement
-import PassboltKit
+import PassBarKit
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel

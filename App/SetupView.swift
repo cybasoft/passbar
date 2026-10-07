@@ -1,6 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
-import PassboltKit
+import PassBarKit
 
 /// One-time setup. The key is read from the recovery-kit file you choose and goes
 /// straight to the Keychain once login succeeds.

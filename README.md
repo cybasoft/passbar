@@ -85,7 +85,7 @@ open → copy buttons. ⌘C copies the password, ⇧⌘C the username, Esc goes 
 
 ```
 App/            SwiftUI + AppKit shell (status item, popover, settings, hotkey)
-Sources/PassboltKit/  API client, models, Keychain, clipboard, view-model (no UI)
+Sources/PassBarKit/  API client, models, Keychain, clipboard, view-model (no UI)
 PGPBridge/      Go wrapper over GopenPGP (built locally to an xcframework)
 Tests/          unit tests with mock server responses and throwaway test keys
 ```

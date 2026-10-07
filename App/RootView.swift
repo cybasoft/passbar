@@ -1,5 +1,5 @@
 import SwiftUI
-import PassboltKit
+import PassBarKit
 
 struct RootView: View {
     @ObservedObject var model: AppModel
