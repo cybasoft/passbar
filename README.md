@@ -6,6 +6,8 @@
 Intel) to search your existing Passbolt (v5, RSA key) vault and copy credentials. No telemetry, no
 third-party servers.
 
+<p align="center"><img src="docs/screenshots/passbar.png" alt="PassBar" height="400"></p>
+
 > PassBar is not officially associated with [Passbolt](https://www.passbolt.com) or its products.
 > It is an independent, community-driven project. Passbolt and the Passbolt logo are registered
 > trademarks of Passbolt S.A.
