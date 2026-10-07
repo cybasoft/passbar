@@ -1,5 +1,7 @@
 # PassBar
 
+<p align="center"><img src="docs/icon.svg" alt="PassBar" height="96"></p>
+
 **A macOS menu-bar client for Passbolt API.** A small native app (SwiftUI, macOS 14+, Apple Silicon +
 Intel) to search your existing Passbolt (v5, RSA key) vault and copy credentials. No telemetry, no
 third-party servers.
