@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/icon.svg" alt="PassBar" height="96"></p>
+
 # PassBar
 
 **A macOS menu-bar client for Passbolt API.** A small native app (SwiftUI, macOS 14+, Apple Silicon +

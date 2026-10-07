@@ -49,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// PassBar glyph as a template image (adapts to light/dark). Dimmed while locked.
     private func updateIcon() {
         let img = NSImage(named: "MenuBarIcon")
-        img?.size = NSSize(width: 24, height: 24 * 44 / 92)
+        img?.size = NSSize(width: 18, height: 18)
         img?.isTemplate = true
         statusItem.button?.image = img
         statusItem.button?.alphaValue = model.state == .unlocked ? 1.0 : 0.45
