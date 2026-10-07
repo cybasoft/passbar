@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build, sign (Developer ID), notarize and package PassBar, then optionally publish a GitHub release.
 # Usage: scripts/release.sh v1.0.0 [--publish]
-# One-time setup: see RELEASING.md (Developer ID cert + `xcrun notarytool store-credentials passbar-notary`).
+# One-time setup: see docs/RELEASING.md (Developer ID cert + `xcrun notarytool store-credentials passbar-notary`).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

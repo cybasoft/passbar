@@ -2,8 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please do not open a public issue. Email the maintainer privately (add your contact address here
-before publishing) with steps to reproduce. Do not include real credentials.
+Please do not open a public issue. Email the maintainer privately (developer@cybasoft.com) with steps to reproduce. Do not include real credentials.
 
 ## Security review (author's self-review, not an independent audit)
 

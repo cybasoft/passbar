@@ -1,17 +1,22 @@
-<p align="center"><img src="docs/icon.svg" alt="PassBar" height="96"></p>
-
 # PassBar
 
-**MacOS menubar for Passbolt.** A small native app (SwiftUI, macOS 14+, Apple Silicon + Intel) to
-search your existing Passbolt (v5, RSA key) vault and copy credentials. No telemetry, no third-party
-servers.
+**A macOS menu-bar client for Passbolt API.** A small native app (SwiftUI, macOS 14+, Apple Silicon +
+Intel) to search your existing Passbolt (v5, RSA key) vault and copy credentials. No telemetry, no
+third-party servers.
 
-> PassBar is an independent, community project. It is not affiliated with, endorsed by, or supported
-> by Passbolt SA. "Passbolt" is a trademark of Passbolt SA.
+> PassBar is not officially associated with [Passbolt](https://www.passbolt.com) or its products.
+> It is an independent, community-driven project. Passbolt and the Passbolt logo are registered
+> trademarks of Passbolt S.A.
 
-> Status: written against the Passbolt OpenAPI spec in `open-api-specs.yaml`. It has been unit
-> tested with mock servers and a real OpenPGP round-trip, but **not yet run against a live Passbolt
-> server** and not independently audited. See [SECURITY.md](SECURITY.md).
+> **Beta.** Written against the Passbolt API as documented upstream. It has been unit tested with mock
+> servers and a real OpenPGP round-trip, but **not yet run against a live Passbolt instance** and not
+> independently audited. See [SECURITY.md](SECURITY.md).
+
+## Install
+
+Download the notarized `PassBar-X.Y.Z.dmg` from the [Releases](https://github.com/cybasoft/passbar/releases)
+page and verify it against `SHA256SUMS.txt`. Release binaries are built from the tagged source with
+`scripts/release.sh`, so you can rebuild and compare.
 
 ## Build
 
@@ -96,5 +101,6 @@ See [SECURITY.md](SECURITY.md).
 
 ## Trademark
 
-This is an unofficial, community client. It is not affiliated with or endorsed by Passbolt SA. The Passbolt
-logo files in `docs/` are Passbolt's trademarks and are not covered by this project's MIT licence.
+PassBar is not officially associated with Passbolt or its products. Passbolt and the Passbolt logo are
+registered trademarks of Passbolt S.A. This project does not use Passbolt's logo; the MIT licence covers
+this project's code only.
