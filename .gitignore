@@ -5,3 +5,4 @@ PassBar.xcodeproj/xcuserdata/
 Pgpbridge.xcframework/
 PGPBridge/go.work
 .temp
+.claude/settings.local.json
