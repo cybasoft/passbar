@@ -4,6 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/../PGPBridge"
 export GOFLAGS=-mod=mod
+# gomobile locates gobind via PATH; make sure Go-installed tools are found.
+export PATH="$(go env GOPATH)/bin:$PATH"
 # Keep the Go runtime compatible with macOS 14 (requirement).
 export MACOSX_DEPLOYMENT_TARGET=14.0
 export CGO_CFLAGS="-mmacosx-version-min=14.0"
