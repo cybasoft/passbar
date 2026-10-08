@@ -18,7 +18,13 @@ third-party servers.
 
 ## Install
 
-Download the notarized `PassBar-X.Y.Z.dmg` from the [Releases](https://github.com/cybasoft/passbar/releases)
+**Homebrew:**
+
+```sh
+brew install --cask cybasoft/tap/passbar
+```
+
+**Manual:** Download the notarized `PassBar-X.Y.Z.dmg` from the [Releases](https://github.com/cybasoft/passbar/releases)
 page and verify it against `SHA256SUMS.txt`. Release binaries are built from the tagged source with
 `scripts/release.sh`, so you can rebuild and compare.
 
