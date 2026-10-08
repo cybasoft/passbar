@@ -19,6 +19,7 @@ public enum PassboltError: Error, Equatable, LocalizedError {
     case keychain(Int32)
     case notFound
     case createUnsupported
+    case editUnsupported
 
     public var errorDescription: String? {
         switch self {
@@ -38,6 +39,7 @@ public enum PassboltError: Error, Equatable, LocalizedError {
         case .keychain(let status): return "Keychain error (\(status))."
         case .notFound: return "Resource not found."
         case .createUnsupported: return "This Passbolt server does not allow creating this kind of resource from here."
+        case .editUnsupported: return "This resource can't be edited from here (unsupported type, or a user's key is unavailable)."
         }
     }
 }

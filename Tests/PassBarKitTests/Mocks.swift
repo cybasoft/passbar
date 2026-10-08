@@ -82,6 +82,14 @@ final class MockTransport: HTTPTransport, @unchecked Sendable {
         t.routes["/secrets/resource/r1.json"] = (200, ["data": MockPGP.encrypt(
             #"{"password":"pw-1","totp":{"secret_key":"GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ","digits":8}}"#, to: "user")])
         t.routes["/secrets/resource/r2.json"] = (200, ["data": MockPGP.encrypt("{plain-password", to: "user")])
+        t.routes["/resources/r1.json"] = (200, [
+            "id": "r1", "resource_type_id": "t1", "metadata_key_id": "mk1", "metadata_key_type": "shared_key",
+            "metadata": MockPGP.encrypt(#"{"name":"AWS Production","username":"admin@example.com","uris":["https://aws.example.com","https://b.example"],"description":"old","icon":"x"}"#, to: "shared"),
+        ])
+        t.routes["/users.json"] = (200, [
+            ["id": "u1", "gpgkey": ["armored_key": "PUB:user"]],
+            ["id": "u2", "gpgkey": ["armored_key": "PUB:other"]],
+        ])
         return t
     }
 }

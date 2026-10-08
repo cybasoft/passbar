@@ -11,6 +11,10 @@ public protocol PassboltClient: Sendable {
     func getSecret(for resource: PassboltResource) async throws -> ResourceSecret
     /// Encrypts and stores a new credential; the result is added to the in-memory index.
     func createResource(_ draft: NewResource) async throws -> PassboltResource
+    /// Current values of a resource, decrypted, to pre-fill the edit form.
+    func editableDraft(for resource: PassboltResource) async throws -> NewResource
+    /// Re-encrypts the resource with the edited values for everyone who has access.
+    func updateResource(_ resource: PassboltResource, with draft: NewResource) async throws -> PassboltResource
     /// Wipes keys, tokens and the metadata index; best-effort server logout.
     func lock() async
     var serverFingerprint: String? { get async }
@@ -24,6 +28,7 @@ public protocol PassboltClient: Sendable {
 ///  GET  /metadata/keys.json          shared metadata keys (v5)
 ///  GET  /resources.json
 ///  POST /resources.json
+///  GET/PUT /resources/{id}.json
 ///  GET  /users/me.json
 ///  GET  /secrets/resource/{id}.json
 ///
@@ -316,6 +321,129 @@ public actor PassboltAPIClient: PassboltClient {
                                         uri: draft.uri, resourceTypeId: typeIdUsed)
         index.append(resource)
         return resource
+    }
+
+    // MARK: Update
+
+    private struct ResourceDetailDTO: Decodable {
+        let resource_type_id: String?
+        let metadata: String?
+        let metadata_key_id: String?
+        let metadata_key_type: String?
+    }
+    private struct AccessUserDTO: Decodable { let id: String; let gpgkey: GpgKeyDTO? }
+
+    private func fetchResource(_ id: String) async throws -> ResourceDetailDTO {
+        try await get("/resources/\(id).json", failure: .notFound)
+    }
+
+    /// Every user who can open the resource, directly or through a group.
+    private func usersWithAccess(to id: String) async throws -> [AccessUserDTO] {
+        try await get("/users.json?filter[has-access]=\(id)&contain[gpgkey]=1", failure: .invalidResponse)
+    }
+
+    /// True for v5 types, false for v4; anything else (custom fields, standalone TOTP, ...) is not editable here.
+    private func editFormat(typeId: String?) throws -> Bool {
+        switch typeId.flatMap({ typeSlugs[$0] }) {
+        case "v5-default", "v5-default-with-totp": return true
+        case "password-and-description", "password-description-totp": return false
+        default: throw PassboltError.editUnsupported
+        }
+    }
+
+    private func decryptMetadata(_ dto: ResourceDetailDTO) throws -> [String: Any] {
+        guard let armored = dto.metadata, let userKey else { throw PassboltError.decryptionFailed }
+        let decryptor: PGPKeyHandle? = dto.metadata_key_type == "user_key" ? userKey
+            : dto.metadata_key_id.flatMap { metadataKeys[$0] }
+        guard let decryptor, let plain = try? decryptor.decrypt(armored, verifyingWith: nil),
+              let json = try? JSONSerialization.jsonObject(with: plain) as? [String: Any] else {
+            throw PassboltError.decryptionFailed
+        }
+        return json
+    }
+
+    public func editableDraft(for resource: PassboltResource) async throws -> NewResource {
+        let isV5 = try editFormat(typeId: resource.resourceTypeId)
+        let secret = try await getSecret(for: resource)
+        var notes = secret.description ?? ""
+        if isV5 {
+            let current = try await fetchResource(resource.id)
+            notes = try decryptMetadata(current)["description"] as? String ?? ""
+        }
+        return NewResource(name: resource.name, uri: resource.uri, username: resource.username,
+                           password: secret.password ?? "", totpSecret: secret.totp?.secretKey ?? "", notes: notes)
+    }
+
+    /// SECURITY CRITICAL: the server requires the secret re-encrypted for every user with access.
+    public func updateResource(_ resource: PassboltResource, with draft: NewResource) async throws -> PassboltResource {
+        guard let key = userKey else { throw PassboltError.notConfigured }
+        let current = try await fetchResource(resource.id)
+        let isV5 = try editFormat(typeId: current.resource_type_id ?? resource.resourceTypeId)
+        let wantsTOTP = !draft.totpSecret.isEmpty
+        let targetSlug = isV5 ? (wantsTOTP ? "v5-default-with-totp" : "v5-default")
+                              : (wantsTOTP ? "password-description-totp" : "password-and-description")
+        guard let typeId = typeSlugs.first(where: { $0.value == targetSlug })?.key else { throw PassboltError.editUnsupported }
+
+        var recipients: [(id: String, key: String)] = []
+        for u in try await usersWithAccess(to: resource.id) {
+            guard let armored = u.gpgkey?.armored_key else { throw PassboltError.editUnsupported }
+            recipients.append((u.id, armored))
+        }
+        guard let ownKey = recipients.first(where: { $0.id == userId })?.key else { throw PassboltError.editUnsupported }
+
+        // Keep the existing TOTP parameters when the key itself is unchanged.
+        let old = (try? await getSecret(for: resource))?.totp
+        var secret: [String: Any] = ["password": draft.password]
+        if wantsTOTP {
+            let same = old?.secretKey == draft.totpSecret
+            secret["totp"] = ["secret_key": draft.totpSecret, "algorithm": same ? old!.algorithm : "SHA1",
+                              "digits": same ? old!.digits : 6, "period": same ? old!.period : 30] as [String: Any]
+        }
+
+        var body: [String: Any] = ["resource_type_id": typeId]
+        if isV5 {
+            secret["object_type"] = "PASSBOLT_SECRET_DATA"
+            var metadata = try decryptMetadata(current)   // preserves fields this form doesn't edit
+            let oldURIs = metadata["uris"] as? [String] ?? []
+            metadata["object_type"] = "PASSBOLT_RESOURCE_METADATA"
+            metadata["resource_type_id"] = typeId
+            metadata["name"] = draft.name
+            metadata["username"] = draft.username
+            metadata["uris"] = (draft.uri.isEmpty ? [] : [draft.uri]) + oldURIs.dropFirst()
+            metadata["uri"] = nil
+            metadata["description"] = draft.notes.isEmpty ? nil : draft.notes
+            let metadataTarget: (armored: String, id: Any, type: String)
+            if current.metadata_key_type == "user_key" {
+                metadataTarget = (ownKey, current.metadata_key_id ?? NSNull(), "user_key")
+            } else if let shared = sharedMetadataKey {
+                metadataTarget = (shared.armored, shared.id, "shared_key")
+            } else {
+                throw PassboltError.editUnsupported
+            }
+            body["metadata"] = try key.signAndEncrypt(try JSONSerialization.data(withJSONObject: metadata),
+                                                      to: metadataTarget.armored)
+            body["metadata_key_id"] = metadataTarget.id
+            body["metadata_key_type"] = metadataTarget.type
+        } else {
+            secret["description"] = draft.notes
+            body["name"] = draft.name; body["username"] = draft.username; body["uri"] = draft.uri
+        }
+
+        let plainSecret = try JSONSerialization.data(withJSONObject: secret)
+        body["secrets"] = try recipients.map { ["user_id": $0.id, "data": try key.signAndEncrypt(plainSecret, to: $0.key)] }
+
+        let (_, status) = try await send("PUT", "/resources/\(resource.id).json", body: body, token: accessToken)
+        switch status {
+        case 200, 201: break
+        case 401: throw PassboltError.authenticationExpired
+        case 400: throw PassboltError.invalidResponse
+        case 404: throw PassboltError.notFound
+        default: throw PassboltError.serverError(status)
+        }
+        let updated = PassboltResource(id: resource.id, name: draft.name, username: draft.username,
+                                       uri: draft.uri, resourceTypeId: typeId)
+        if let i = index.firstIndex(where: { $0.id == resource.id }) { index[i] = updated } else { index.append(updated) }
+        return updated
     }
 
     // MARK: HTTP helpers

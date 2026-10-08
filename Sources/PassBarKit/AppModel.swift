@@ -23,6 +23,9 @@ public final class AppModel: ObservableObject {
     @Published public var isCreating = false
     /// In-progress new credential; survives the popover closing (e.g. copying from another app). Cleared on lock or save.
     @Published public var draft = NewResource()
+    /// Resource being edited and its in-progress values; like `draft`, kept until saved, cancelled or locked.
+    @Published public private(set) var editingResource: PassboltResource?
+    @Published public var editDraft = NewResource()
     /// True only until the first unlock attempt: after any lock the user must unlock explicitly.
     public private(set) var shouldAutoPromptUnlock = true
 
@@ -112,6 +115,7 @@ public final class AppModel: ObservableObject {
         inactivityTask?.cancel(); inactivityTask = nil
         clipboard.clearIfUnchanged()
         detail = nil; results = []; query = ""; isCreating = false; draft = NewResource()
+        cancelEdit()
         let c = client; client = nil
         await c?.lock()
         if state != .unconfigured { state = .locked }
@@ -176,20 +180,56 @@ public final class AppModel: ObservableObject {
     public func createResource(_ draft: NewResource) async -> Bool {
         touch(); errorMessage = nil
         guard let client else { return false }
-        var d = draft
-        d.name = d.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        d.uri = d.uri.trimmingCharacters(in: .whitespacesAndNewlines)
-        d.username = d.username.trimmingCharacters(in: .whitespacesAndNewlines)
-        d.totpSecret = d.totpSecret.filter { !$0.isWhitespace }.uppercased()
-        guard !d.name.isEmpty, !d.password.isEmpty else { errorMessage = "Name and password are required."; return false }
-        if !d.totpSecret.isEmpty, TOTP.code(for: TOTPParameters(secretKey: d.totpSecret)) == nil {
-            errorMessage = "The TOTP key is not valid."; return false
-        }
+        guard let d = validated(draft) else { return false }
         do {
             let r = try await client.createResource(d)
             preferences.recordRecent(r.id)
             isCreating = false
             self.draft = NewResource()
+            refreshResults()
+            return true
+        } catch {
+            errorMessage = message(for: error)
+            return false
+        }
+    }
+
+    /// Trims and checks a form; sets `errorMessage` and returns nil if invalid.
+    private func validated(_ draft: NewResource) -> NewResource? {
+        var d = draft
+        d.name = d.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        d.uri = d.uri.trimmingCharacters(in: .whitespacesAndNewlines)
+        d.username = d.username.trimmingCharacters(in: .whitespacesAndNewlines)
+        d.totpSecret = d.totpSecret.filter { !$0.isWhitespace }.uppercased()
+        guard !d.name.isEmpty, !d.password.isEmpty else { errorMessage = "Name and password are required."; return nil }
+        if !d.totpSecret.isEmpty, TOTP.code(for: TOTPParameters(secretKey: d.totpSecret)) == nil {
+            errorMessage = "The TOTP key is not valid."; return nil
+        }
+        return d
+    }
+
+    /// Loads the resource's current values into the edit form.
+    public func beginEdit(_ resource: PassboltResource) async {
+        touch(); errorMessage = nil
+        guard let client else { return }
+        do {
+            editDraft = try await client.editableDraft(for: resource)
+            editingResource = resource
+        } catch {
+            errorMessage = message(for: error)
+        }
+    }
+
+    public func cancelEdit() { editingResource = nil; editDraft = NewResource() }
+
+    /// Saves the edit form and shows the updated resource. Returns true on success.
+    public func saveEdit() async -> Bool {
+        touch(); errorMessage = nil
+        guard let client, let resource = editingResource, let d = validated(editDraft) else { return false }
+        do {
+            let updated = try await client.updateResource(resource, with: d)
+            cancelEdit()
+            await select(updated)
             refreshResults()
             return true
         } catch {
@@ -217,7 +257,7 @@ public final class AppModel: ObservableObject {
 
     // MARK: Security settings
 
-    public func clearCachedData() { detail = nil; results = []; query = ""; isCreating = false; draft = NewResource() }
+    public func clearCachedData() { detail = nil; results = []; query = ""; isCreating = false; draft = NewResource(); cancelEdit() }
 
     public func clearKeychainCredentials() async {
         await lock()

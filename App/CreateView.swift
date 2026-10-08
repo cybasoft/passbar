@@ -1,23 +1,26 @@
 import SwiftUI
 import PassBarKit
 
-/// New-credential form. The draft lives in the model so it survives the popover closing.
+/// New-credential / edit form. Drafts live in the model so they survive the popover closing.
 struct CreateView: View {
     @ObservedObject var model: AppModel
     @State private var revealPassword = false
     @State private var busy = false
 
+    private var isEditing: Bool { model.editingResource != nil }
+    private var form: Binding<NewResource> { isEditing ? $model.editDraft : $model.draft }
+
     private var canSave: Bool {
-        !busy && !model.draft.name.trimmingCharacters(in: .whitespaces).isEmpty && !model.draft.password.isEmpty
+        !busy && !form.wrappedValue.name.trimmingCharacters(in: .whitespaces).isEmpty && !form.wrappedValue.password.isEmpty
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Button { model.isCreating = false } label: { Image(systemName: "chevron.left") }
-                    .buttonStyle(.plain).accessibilityLabel("Back to passwords")
+                Button { back() } label: { Image(systemName: "chevron.left") }
+                    .buttonStyle(.plain).accessibilityLabel(isEditing ? "Cancel editing" : "Back to passwords")
                     .keyboardShortcut(.escape, modifiers: [])
-                Text("New password").font(.system(size: 18, weight: .bold))
+                Text(isEditing ? "Edit password" : "New password").font(.system(size: 18, weight: .bold))
                 Spacer()
                 if busy { ProgressView().controlSize(.small) }
                 Button("Save") { save() }
@@ -26,22 +29,22 @@ struct CreateView: View {
             .padding(.horizontal, 16).padding(.vertical, 12)
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    field("Name") { TextField("Name", text: $model.draft.name) }
-                    field("URL") { TextField("https://", text: $model.draft.uri) }
-                    field("Username") { TextField("Username", text: $model.draft.username) }
+                    field("Name") { TextField("Name", text: form.name) }
+                    field("URL") { TextField("https://", text: form.uri) }
+                    field("Username") { TextField("Username", text: form.username) }
                     field("Password") {
                         HStack {
                             Group {
-                                if revealPassword { TextField("Password", text: $model.draft.password) }
-                                else { SecureField("Password", text: $model.draft.password) }
+                                if revealPassword { TextField("Password", text: form.password) }
+                                else { SecureField("Password", text: form.password) }
                             }
                             Button { revealPassword.toggle() } label: { Image(systemName: revealPassword ? "eye.slash" : "eye") }
                                 .buttonStyle(.plain).accessibilityLabel(revealPassword ? "Hide password" : "Show password")
                         }
                     }
-                    field("TOTP key (optional)") { TextField("Base32 secret", text: $model.draft.totpSecret) }
+                    field("TOTP key (optional)") { TextField("Base32 secret", text: form.totpSecret) }
                     field("Notes (optional)") {
-                        TextEditor(text: $model.draft.notes).font(.body).frame(height: 64).scrollContentBackground(.hidden)
+                        TextEditor(text: form.notes).font(.body).frame(height: 64).scrollContentBackground(.hidden)
                     }
                 }
                 .padding(.horizontal, 16).padding(.bottom, 12)
@@ -60,11 +63,15 @@ struct CreateView: View {
         }
     }
 
+    private func back() {
+        if isEditing { model.cancelEdit() } else { model.isCreating = false }
+    }
+
     private func save() {
         busy = true
         let toSave = model.draft
         Task {
-            _ = await model.createResource(toSave)
+            if isEditing { _ = await model.saveEdit() } else { _ = await model.createResource(toSave) }
             busy = false
         }
     }

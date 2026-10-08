@@ -142,4 +142,64 @@ final class ClientTests: XCTestCase {
         do { _ = try await c.createResource(NewResource(name: "a", password: "b")); XCTFail() }
         catch { XCTAssertEqual(error as? PassboltError, .createUnsupported) }
     }
+
+    private func loadedClient(_ t: MockTransport) async throws -> (PassboltAPIClient, PassboltResource) {
+        let c = try makeClient(t)
+        try await c.unlock(privateKey: "PRIV:user", passphrase: "x")
+        try await c.authenticate()
+        let all = try await c.loadResources()
+        let aws = try XCTUnwrap(all.first { $0.id == "r1" })
+        return (c, aws)
+    }
+
+    func testEditableDraftIncludesNotesFromMetadata() async throws {
+        let (c, aws) = try await loadedClient(.standard())
+        let d = try await c.editableDraft(for: aws)
+        XCTAssertEqual(d.notes, "old")
+        XCTAssertEqual(d.password, "pw-1")
+        XCTAssertEqual(d.totpSecret, "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+    }
+
+    func testUpdateReencryptsForEveryUserAndKeepsOtherMetadata() async throws {
+        let t = MockTransport.standard()
+        let (c, aws) = try await loadedClient(t)
+        var d = try await c.editableDraft(for: aws)
+        d.name = "AWS Prod"; d.password = "new-pw"; d.notes = ""
+        let updated = try await c.updateResource(aws, with: d)
+        XCTAssertEqual(updated.name, "AWS Prod")
+        let put = try XCTUnwrap(t.requests.last { $0.httpMethod == "PUT" && $0.url?.path == "/resources/r1.json" })
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: put.httpBody!) as? [String: Any])
+        XCTAssertEqual(body["resource_type_id"] as? String, "t3")   // TOTP kept -> with-totp type
+        let meta = try XCTUnwrap(MockPGP.decode(body["metadata"] as! String))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: meta.plain) as? [String: Any])
+        XCTAssertEqual(json["name"] as? String, "AWS Prod")
+        XCTAssertEqual(json["icon"] as? String, "x")
+        XCTAssertNil(json["description"])
+        XCTAssertEqual(json["uris"] as? [String], ["https://aws.example.com", "https://b.example"])
+        let secrets = try XCTUnwrap(body["secrets"] as? [[String: String]])
+        XCTAssertEqual(secrets.map { $0["user_id"] }, ["u1", "u2"])
+        XCTAssertEqual(MockPGP.decode(secrets[1]["data"]!)?.owner, "other")
+        let secret = try XCTUnwrap(JSONSerialization.jsonObject(with: MockPGP.decode(secrets[0]["data"]!)!.plain) as? [String: Any])
+        XCTAssertEqual(secret["password"] as? String, "new-pw")
+        XCTAssertEqual((secret["totp"] as? [String: Any])?["digits"] as? Int, 8)
+        let found = await c.searchResources(query: "AWS Prod")
+        XCTAssertEqual(found.count, 1)
+    }
+
+    func testUpdateRefusedWhenRecipientKeyMissing() async throws {
+        let t = MockTransport.standard()
+        t.routes["/users.json"] = (200, [["id": "u1", "gpgkey": ["armored_key": "PUB:user"]], ["id": "u2"]])
+        let (c, aws) = try await loadedClient(t)
+        do { _ = try await c.updateResource(aws, with: NewResource(name: "a", password: "b")); XCTFail() }
+        catch { XCTAssertEqual(error as? PassboltError, .editUnsupported) }
+        XCTAssertFalse(t.requests.contains { $0.httpMethod == "PUT" })
+    }
+
+    func testEditUnsupportedForPasswordStringType() async throws {
+        let (c, _) = try await loadedClient(.standard())
+        let found = await c.searchResources(query: "GitHub")
+        let gh = try XCTUnwrap(found.first)
+        do { _ = try await c.editableDraft(for: gh); XCTFail() }
+        catch { XCTAssertEqual(error as? PassboltError, .editUnsupported) }
+    }
 }

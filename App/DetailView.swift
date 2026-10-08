@@ -15,6 +15,8 @@ struct DetailView: View {
                     .keyboardShortcut(.escape, modifiers: [])
                 Text(detail.resource.name).font(.headline).lineLimit(1)
                 Spacer()
+                Button { Task { await model.beginEdit(detail.resource) } } label: { Image(systemName: "pencil") }
+                    .buttonStyle(.plain).accessibilityLabel("Edit")
             }
             .padding(12)
             Divider()

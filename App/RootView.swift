@@ -11,7 +11,8 @@ struct RootView: View {
             case .unconfigured: SetupView(model: model)
             case .locked, .unlocking: LockedView(model: model)
             case .unlocked:
-                if let detail = model.detail { DetailView(model: model, detail: detail) }
+                if model.editingResource != nil { CreateView(model: model) }
+                else if let detail = model.detail { DetailView(model: model, detail: detail) }
                 else if model.isCreating { CreateView(model: model) }
                 else { SearchView(model: model, actions: actions) }
             }
