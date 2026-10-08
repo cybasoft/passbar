@@ -80,7 +80,7 @@ final class MockTransport: HTTPTransport, @unchecked Sendable {
             ["id": "r3", "name": "Legacy v4", "username": "old", "uri": "http://old.example"],
         ])
         t.routes["/secrets/resource/r1.json"] = (200, ["data": MockPGP.encrypt(
-            #"{"password":"pw-1","totp":{"secret_key":"GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ","digits":8}}"#, to: "user")])
+            #"{"password":"pw-1","description":"secret note","totp":{"secret_key":"GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ","digits":8}}"#, to: "user")])
         t.routes["/secrets/resource/r2.json"] = (200, ["data": MockPGP.encrypt("{plain-password", to: "user")])
         t.routes["/resources/r1.json"] = (200, [
             "id": "r1", "resource_type_id": "t1", "metadata_key_id": "mk1", "metadata_key_type": "shared_key",

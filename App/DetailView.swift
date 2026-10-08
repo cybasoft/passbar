@@ -39,7 +39,7 @@ struct DetailView: View {
         }
     }
 
-    private enum Row { case username, password, totp, url }
+    private enum Row { case username, password, totp, url, notes, description }
 
     private var rows: [Row] {
         var r: [Row] = []
@@ -47,6 +47,8 @@ struct DetailView: View {
         if detail.secret.password != nil { r.append(.password) }
         if detail.secret.totp != nil { r.append(.totp) }
         if !detail.resource.uri.isEmpty { r.append(.url) }
+        if !(detail.secret.description ?? "").isEmpty { r.append(.notes) }
+        if !(detail.secret.metadataDescription ?? "").isEmpty { r.append(.description) }
         return r
     }
 
@@ -67,6 +69,10 @@ struct DetailView: View {
                   copyValue: { model.totpCode() })
         case .url:
             urlRow
+        case .notes:
+            textBlock("Note", id: "notes", text: detail.secret.description ?? "")
+        case .description:
+            textBlock("Description", id: "description", text: detail.secret.metadataDescription ?? "")
         }
     }
 
@@ -85,6 +91,23 @@ struct DetailView: View {
                     }.buttonStyle(.plain).accessibilityLabel(toggle.wrappedValue ? "Hide \(label)" : "Show \(label)")
                 }
                 Button { model.copy(id, value: copyValue?() ?? copy) } label: {
+                    Image(systemName: model.copiedField == id ? "checkmark" : "doc.on.doc")
+                        .foregroundStyle(model.copiedField == id ? .green : .primary)
+                }.buttonStyle(.plain).accessibilityLabel("Copy \(label)")
+            }
+        }
+    }
+
+    private func textBlock(_ label: String, id: String, text: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            HStack(alignment: .top) {
+                // Capped height so long text scrolls instead of growing the window.
+                ScrollView {
+                    Text(text).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
+                }
+                .frame(maxHeight: 90)
+                Button { model.copy(id, value: text) } label: {
                     Image(systemName: model.copiedField == id ? "checkmark" : "doc.on.doc")
                         .foregroundStyle(model.copiedField == id ? .green : .primary)
                 }.buttonStyle(.plain).accessibilityLabel("Copy \(label)")

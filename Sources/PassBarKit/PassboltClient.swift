@@ -250,7 +250,14 @@ public actor PassboltAPIClient: PassboltClient {
         let dto: SecretDTO = try await get("/secrets/resource/\(resource.id).json", failure: .notFound)
         guard let plain = try? key.decrypt(dto.data, verifyingWith: nil),
               let text = String(data: plain, encoding: .utf8) else { throw PassboltError.decryptionFailed }
-        return Self.parseSecret(text, typeSlug: resource.resourceTypeId.flatMap { typeSlugs[$0] })
+        var secret = Self.parseSecret(text, typeSlug: resource.resourceTypeId.flatMap { typeSlugs[$0] })
+        // v5 keeps a separate description in the (separately encrypted) metadata.
+        if resource.resourceTypeId.flatMap({ typeSlugs[$0] })?.hasPrefix("v5-") == true,
+           let current = try? await fetchResource(resource.id),
+           let description = (try? decryptMetadata(current))?["description"] as? String {
+            secret.metadataDescription = description
+        }
+        return secret
     }
 
     static func parseSecret(_ text: String, typeSlug: String?) -> ResourceSecret {
@@ -290,10 +297,11 @@ public actor PassboltAPIClient: PassboltClient {
         if let shared = sharedMetadataKey, let tid = typeId(totp == nil ? "v5-default" : "v5-default-with-totp") {
             typeIdUsed = tid
             secret["object_type"] = "PASSBOLT_SECRET_DATA"
+            if !draft.notes.isEmpty { secret["description"] = draft.notes }
             var metadata: [String: Any] = ["object_type": "PASSBOLT_RESOURCE_METADATA", "resource_type_id": tid,
                                            "name": draft.name, "username": draft.username,
                                            "uris": draft.uri.isEmpty ? [] : [draft.uri]]
-            if !draft.notes.isEmpty { metadata["description"] = draft.notes }
+            if !draft.description.isEmpty { metadata["description"] = draft.description }
             body["metadata"] = try key.signAndEncrypt(try JSONSerialization.data(withJSONObject: metadata), to: shared.armored)
             body["metadata_key_id"] = shared.id
             body["metadata_key_type"] = "shared_key"
@@ -363,15 +371,11 @@ public actor PassboltAPIClient: PassboltClient {
     }
 
     public func editableDraft(for resource: PassboltResource) async throws -> NewResource {
-        let isV5 = try editFormat(typeId: resource.resourceTypeId)
+        _ = try editFormat(typeId: resource.resourceTypeId)
         let secret = try await getSecret(for: resource)
-        var notes = secret.description ?? ""
-        if isV5 {
-            let current = try await fetchResource(resource.id)
-            notes = try decryptMetadata(current)["description"] as? String ?? ""
-        }
         return NewResource(name: resource.name, uri: resource.uri, username: resource.username,
-                           password: secret.password ?? "", totpSecret: secret.totp?.secretKey ?? "", notes: notes)
+                           password: secret.password ?? "", totpSecret: secret.totp?.secretKey ?? "",
+                           notes: secret.description ?? "", description: secret.metadataDescription ?? "")
     }
 
     /// SECURITY CRITICAL: the server requires the secret re-encrypted for every user with access.
@@ -403,6 +407,7 @@ public actor PassboltAPIClient: PassboltClient {
         var body: [String: Any] = ["resource_type_id": typeId]
         if isV5 {
             secret["object_type"] = "PASSBOLT_SECRET_DATA"
+            if !draft.notes.isEmpty { secret["description"] = draft.notes }
             var metadata = try decryptMetadata(current)   // preserves fields this form doesn't edit
             let oldURIs = metadata["uris"] as? [String] ?? []
             metadata["object_type"] = "PASSBOLT_RESOURCE_METADATA"
@@ -411,7 +416,7 @@ public actor PassboltAPIClient: PassboltClient {
             metadata["username"] = draft.username
             metadata["uris"] = (draft.uri.isEmpty ? [] : [draft.uri]) + oldURIs.dropFirst()
             metadata["uri"] = nil
-            metadata["description"] = draft.notes.isEmpty ? nil : draft.notes
+            metadata["description"] = draft.description.isEmpty ? nil : draft.description
             let metadataTarget: (armored: String, id: Any, type: String)
             if current.metadata_key_type == "user_key" {
                 metadataTarget = (ownKey, current.metadata_key_id ?? NSNull(), "user_key")

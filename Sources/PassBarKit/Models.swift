@@ -22,11 +22,13 @@ public struct NewResource: Sendable {
     public var password: String
     public var totpSecret: String
     public var notes: String
+    /// v5 metadata description (visible to everyone with access); `notes` is the encrypted secret note.
+    public var description: String
 
     public init(name: String = "", uri: String = "", username: String = "", password: String = "",
-                totpSecret: String = "", notes: String = "") {
+                totpSecret: String = "", notes: String = "", description: String = "") {
         self.name = name; self.uri = uri; self.username = username; self.password = password
-        self.totpSecret = totpSecret; self.notes = notes
+        self.totpSecret = totpSecret; self.notes = notes; self.description = description
     }
 }
 
@@ -46,9 +48,13 @@ public struct ResourceSecret: Equatable, Sendable {
     public var password: String?
     public var totp: TOTPParameters?
     public var description: String?
+    /// v5 only: the metadata description (the secret's `description` is the Note).
+    public var metadataDescription: String?
 
-    public init(password: String? = nil, totp: TOTPParameters? = nil, description: String? = nil) {
+    public init(password: String? = nil, totp: TOTPParameters? = nil, description: String? = nil,
+                metadataDescription: String? = nil) {
         self.password = password; self.totp = totp; self.description = description
+        self.metadataDescription = metadataDescription
     }
 }
 

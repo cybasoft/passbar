@@ -152,10 +152,11 @@ final class ClientTests: XCTestCase {
         return (c, aws)
     }
 
-    func testEditableDraftIncludesNotesFromMetadata() async throws {
+    func testEditableDraftSeparatesNoteFromDescription() async throws {
         let (c, aws) = try await loadedClient(.standard())
         let d = try await c.editableDraft(for: aws)
-        XCTAssertEqual(d.notes, "old")
+        XCTAssertEqual(d.description, "old")
+        XCTAssertEqual(d.notes, "secret note")
         XCTAssertEqual(d.password, "pw-1")
         XCTAssertEqual(d.totpSecret, "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
     }
@@ -164,7 +165,7 @@ final class ClientTests: XCTestCase {
         let t = MockTransport.standard()
         let (c, aws) = try await loadedClient(t)
         var d = try await c.editableDraft(for: aws)
-        d.name = "AWS Prod"; d.password = "new-pw"; d.notes = ""
+        d.name = "AWS Prod"; d.password = "new-pw"; d.description = ""
         let updated = try await c.updateResource(aws, with: d)
         XCTAssertEqual(updated.name, "AWS Prod")
         let put = try XCTUnwrap(t.requests.last { $0.httpMethod == "PUT" && $0.url?.path == "/resources/r1.json" })
@@ -181,6 +182,7 @@ final class ClientTests: XCTestCase {
         XCTAssertEqual(MockPGP.decode(secrets[1]["data"]!)?.owner, "other")
         let secret = try XCTUnwrap(JSONSerialization.jsonObject(with: MockPGP.decode(secrets[0]["data"]!)!.plain) as? [String: Any])
         XCTAssertEqual(secret["password"] as? String, "new-pw")
+        XCTAssertEqual(secret["description"] as? String, "secret note")
         XCTAssertEqual((secret["totp"] as? [String: Any])?["digits"] as? Int, 8)
         let found = await c.searchResources(query: "AWS Prod")
         XCTAssertEqual(found.count, 1)

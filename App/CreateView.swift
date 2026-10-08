@@ -43,8 +43,11 @@ struct CreateView: View {
                         }
                     }
                     field("TOTP key (optional)") { TextField("Base32 secret", text: form.totpSecret) }
-                    field("Notes (optional)") {
+                    field("Notes (optional, encrypted)") {
                         TextEditor(text: form.notes).font(.body).frame(height: 64).scrollContentBackground(.hidden)
+                    }
+                    field("Description (optional)") {
+                        TextEditor(text: form.description).font(.body).frame(height: 48).scrollContentBackground(.hidden)
                     }
                 }
                 .padding(.horizontal, 16).padding(.bottom, 12)
