@@ -1,15 +1,14 @@
 import SwiftUI
 import PassBarKit
 
-/// New-credential form. Everything typed lives only in this view's state.
+/// New-credential form. The draft lives in the model so it survives the popover closing.
 struct CreateView: View {
     @ObservedObject var model: AppModel
-    @State private var draft = NewResource()
     @State private var revealPassword = false
     @State private var busy = false
 
     private var canSave: Bool {
-        !busy && !draft.name.trimmingCharacters(in: .whitespaces).isEmpty && !draft.password.isEmpty
+        !busy && !model.draft.name.trimmingCharacters(in: .whitespaces).isEmpty && !model.draft.password.isEmpty
     }
 
     var body: some View {
@@ -27,22 +26,22 @@ struct CreateView: View {
             .padding(.horizontal, 16).padding(.vertical, 12)
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    field("Name") { TextField("Name", text: $draft.name) }
-                    field("URL") { TextField("https://", text: $draft.uri) }
-                    field("Username") { TextField("Username", text: $draft.username) }
+                    field("Name") { TextField("Name", text: $model.draft.name) }
+                    field("URL") { TextField("https://", text: $model.draft.uri) }
+                    field("Username") { TextField("Username", text: $model.draft.username) }
                     field("Password") {
                         HStack {
                             Group {
-                                if revealPassword { TextField("Password", text: $draft.password) }
-                                else { SecureField("Password", text: $draft.password) }
+                                if revealPassword { TextField("Password", text: $model.draft.password) }
+                                else { SecureField("Password", text: $model.draft.password) }
                             }
                             Button { revealPassword.toggle() } label: { Image(systemName: revealPassword ? "eye.slash" : "eye") }
                                 .buttonStyle(.plain).accessibilityLabel(revealPassword ? "Hide password" : "Show password")
                         }
                     }
-                    field("TOTP key (optional)") { TextField("Base32 secret", text: $draft.totpSecret) }
+                    field("TOTP key (optional)") { TextField("Base32 secret", text: $model.draft.totpSecret) }
                     field("Notes (optional)") {
-                        TextEditor(text: $draft.notes).font(.body).frame(height: 64).scrollContentBackground(.hidden)
+                        TextEditor(text: $model.draft.notes).font(.body).frame(height: 64).scrollContentBackground(.hidden)
                     }
                 }
                 .padding(.horizontal, 16).padding(.bottom, 12)
@@ -63,11 +62,10 @@ struct CreateView: View {
 
     private func save() {
         busy = true
-        let toSave = draft
+        let toSave = model.draft
         Task {
-            let ok = await model.createResource(toSave)
+            _ = await model.createResource(toSave)
             busy = false
-            if ok { draft = NewResource() }
         }
     }
 }

@@ -21,6 +21,8 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var copiedField: String?
     /// Shows the new-credential form in place of the list.
     @Published public var isCreating = false
+    /// In-progress new credential; survives the popover closing (e.g. copying from another app). Cleared on lock or save.
+    @Published public var draft = NewResource()
     /// True only until the first unlock attempt: after any lock the user must unlock explicitly.
     public private(set) var shouldAutoPromptUnlock = true
 
@@ -109,7 +111,7 @@ public final class AppModel: ObservableObject {
         shouldAutoPromptUnlock = false
         inactivityTask?.cancel(); inactivityTask = nil
         clipboard.clearIfUnchanged()
-        detail = nil; results = []; query = ""; isCreating = false
+        detail = nil; results = []; query = ""; isCreating = false; draft = NewResource()
         let c = client; client = nil
         await c?.lock()
         if state != .unconfigured { state = .locked }
@@ -187,6 +189,7 @@ public final class AppModel: ObservableObject {
             let r = try await client.createResource(d)
             preferences.recordRecent(r.id)
             isCreating = false
+            self.draft = NewResource()
             refreshResults()
             return true
         } catch {
@@ -196,7 +199,7 @@ public final class AppModel: ObservableObject {
     }
 
     /// Drops decrypted data from memory (called on back / popover close).
-    public func clearDetail() { detail = nil; copiedField = nil; isCreating = false; refreshResults() }
+    public func clearDetail() { detail = nil; copiedField = nil; refreshResults() }
 
     // MARK: Copy
 
@@ -214,7 +217,7 @@ public final class AppModel: ObservableObject {
 
     // MARK: Security settings
 
-    public func clearCachedData() { detail = nil; results = []; query = "" }
+    public func clearCachedData() { detail = nil; results = []; query = ""; isCreating = false; draft = NewResource() }
 
     public func clearKeychainCredentials() async {
         await lock()
