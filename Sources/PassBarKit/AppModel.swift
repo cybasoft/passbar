@@ -172,7 +172,7 @@ public final class AppModel: ObservableObject {
             detail = ResourceDetail(resource: resource, secret: try await client.getSecret(for: resource))
             preferences.recordRecent(resource.id)
         } catch {
-            errorMessage = message(for: error)
+            await handleFailure(error)
         }
     }
 
@@ -189,7 +189,7 @@ public final class AppModel: ObservableObject {
             refreshResults()
             return true
         } catch {
-            errorMessage = message(for: error)
+            await handleFailure(error)
             return false
         }
     }
@@ -216,7 +216,7 @@ public final class AppModel: ObservableObject {
             editDraft = try await client.editableDraft(for: resource)
             editingResource = resource
         } catch {
-            errorMessage = message(for: error)
+            await handleFailure(error)
         }
     }
 
@@ -233,7 +233,7 @@ public final class AppModel: ObservableObject {
             refreshResults()
             return true
         } catch {
-            errorMessage = message(for: error)
+            await handleFailure(error)
             return false
         }
     }
@@ -270,6 +270,12 @@ public final class AppModel: ObservableObject {
     public func prepareForTermination() { clipboard.clearIfUnchanged() }
 
     public func dismissError() { errorMessage = nil }
+
+    /// An expired server session locks the app so the user re-authenticates instead of retrying.
+    private func handleFailure(_ error: Error) async {
+        if (error as? PassboltError) == .authenticationExpired { await lock() }
+        errorMessage = message(for: error)
+    }
 
     private func message(for error: Error) -> String {
         (error as? PassboltError)?.localizedDescription ?? "Something went wrong."
