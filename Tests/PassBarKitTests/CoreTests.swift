@@ -156,6 +156,43 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(m.state, .locked)
     }
 
+    func testMFAAccountPromptsThenUnlocksWithCode() async throws {
+        let t = MockTransport.standard()
+        t.routes["/users/me.json"] = (403, [:])
+        let store = InMemorySecretStore()
+        let m = makeModel(store: store, transport: t)
+        await m.configure(serverURL: "https://passbolt.example", userId: uid, privateKey: "PRIV:user", passphrase: "p")
+        XCTAssertEqual(m.state, .awaitingMFA)
+        XCTAssertNil(try store.get(.privateKey))   // nothing stored until MFA succeeds
+
+        t.routes["/users/me.json"] = (200, ["id": "u1", "gpgkey": ["armored_key": "PUB:user"]])
+        t.routes["/mfa/verify/totp.json"] = (400, [:])
+        await m.submitMFA("000000")
+        XCTAssertEqual(m.state, .awaitingMFA)
+        XCTAssertEqual(m.errorMessage, PassboltError.mfaInvalidCode.localizedDescription)
+
+        t.routes["/mfa/verify/totp.json"] = (200, [:])
+        await m.submitMFA("123 456")
+        XCTAssertEqual(m.state, .unlocked)
+        XCTAssertNotNil(try store.get(.privateKey))
+        let post = t.requests.last { $0.url?.path == "/mfa/verify/totp.json" }
+        XCTAssertEqual(post?.httpMethod, "POST")
+        XCTAssertEqual(String(data: post?.httpBody ?? Data(), encoding: .utf8)?.contains("123456"), true)
+    }
+
+    func testCancelMFAReturnsToLocked() async {
+        let t = MockTransport.standard()
+        let store = InMemorySecretStore()
+        let m1 = makeModel(store: store, transport: t)
+        await m1.configure(serverURL: "https://passbolt.example", userId: uid, privateKey: "PRIV:user", passphrase: "p")
+        t.routes["/users/me.json"] = (403, [:])
+        await m1.lock()
+        await m1.unlock()
+        XCTAssertEqual(m1.state, .awaitingMFA)
+        await m1.cancelMFA()
+        XCTAssertEqual(m1.state, .locked)
+    }
+
     func testAutoLockDisabled() async {
         let m = makeModel()
         await m.configure(serverURL: "https://passbolt.example", userId: uid, privateKey: "PRIV:user", passphrase: "p")
@@ -227,6 +264,8 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(m.state, .unconfigured)
         XCTAssertNil(try store.get(.privateKey))
         XCTAssertNil(try store.get(.passphrase))
+        XCTAssertEqual(m.preferences.serverURL, "")
+        XCTAssertEqual(m.preferences.userId, "")
     }
 }
 

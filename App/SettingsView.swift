@@ -72,6 +72,7 @@ struct PassboltTab: View {
         case .unconfigured: return "Not configured"
         case .locked: return "Locked"
         case .unlocking: return "Unlocking…"
+        case .awaitingMFA: return "Waiting for MFA code"
         case .unlocked: return "Authenticated"
         }
     }
@@ -88,11 +89,11 @@ struct SecurityTab: View {
                 .font(.caption).foregroundStyle(.secondary)
             Divider()
             Button("Clear Keychain credentials…", role: .destructive) { confirmClear = true }
-            Text("Removes your stored private key and passphrase. You will need to set up again.")
+                Text("Removes your private key, passphrase, server URL, and user ID. You will need to set up again.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .padding()
-        .confirmationDialog("Remove stored key and passphrase from the Keychain?", isPresented: $confirmClear) {
+        .confirmationDialog("Remove credentials and account details?", isPresented: $confirmClear) {
             Button("Clear credentials", role: .destructive) { Task { await model.clearKeychainCredentials() } }
         }
     }

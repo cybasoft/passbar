@@ -61,6 +61,18 @@ final class ClientTests: XCTestCase {
         do { _ = try await c.loadResources(); XCTFail() } catch { XCTAssertEqual(error as? PassboltError, .authenticationExpired) }
     }
 
+    func testMFAAccountThrowsMFARequiredThenVerifies() async throws {
+        let t = MockTransport.standard()
+        t.routes["/users/me.json"] = (403, [:])
+        let c = try makeClient(t)
+        try await c.unlock(privateKey: "PRIV:user", passphrase: "x")
+        do { try await c.authenticate(); XCTFail() } catch { XCTAssertEqual(error as? PassboltError, .mfaRequired) }
+        t.routes["/mfa/verify/totp.json"] = (200, [:])
+        try await c.verifyMFA(code: "123456")
+        t.routes["/mfa/verify/totp.json"] = (400, [:])
+        do { try await c.verifyMFA(code: "1"); XCTFail() } catch { XCTAssertEqual(error as? PassboltError, .mfaInvalidCode) }
+    }
+
     func testResourceParsingV5AndV4() async throws {
         let c = try makeClient(.standard())
         try await c.unlock(privateKey: "PRIV:user", passphrase: "x")

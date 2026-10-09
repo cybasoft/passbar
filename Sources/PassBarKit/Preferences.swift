@@ -34,6 +34,8 @@ public final class Preferences: ObservableObject {
     }
 
     public func resetAccount() {
+        serverURL = ""
+        userId = ""
         serverFingerprint = ""; keyFingerprint = ""; recentResourceIds = []
     }
 }

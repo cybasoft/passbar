@@ -5,6 +5,8 @@ public protocol PassboltClient: Sendable {
     func unlock(privateKey: String, passphrase: String) async throws
     /// Passbolt GpgJwtAuth login. Tokens are kept in memory only.
     func authenticate() async throws
+    /// Completes login with an authenticator-app code after `authenticate()` threw `mfaRequired`.
+    func verifyMFA(code: String) async throws
     /// Fetches resources and decrypts their metadata into an in-memory index.
     func loadResources() async throws -> [PassboltResource]
     func searchResources(query: String) async -> [PassboltResource]
@@ -82,6 +84,7 @@ public actor PassboltAPIClient: PassboltClient {
         if let refresh, let access {   // best effort, errors ignored
             _ = try? await send("POST", "/auth/jwt/logout.json", body: ["refresh_token": refresh], token: access)
         }
+        transport.invalidate()
     }
 
     // MARK: Authentication
@@ -126,6 +129,28 @@ public actor PassboltAPIClient: PassboltClient {
         accessToken = access
         refreshToken = reply.refresh_token
         verifiedServerFingerprint = serverFP
+        try await requireMFAIfNeeded()
+    }
+
+    private struct MFARequiredBody: Decodable { let mfa_providers: [String]? }
+
+    /// With MFA enabled the server rejects every call until a code is verified; probe once so we can ask for it.
+    private func requireMFAIfNeeded() async throws {
+        let (data, status) = try await send("GET", "/users/me.json", body: nil, token: accessToken)
+        guard status == 401 || status == 403 else { return }
+        let providers = (try? decodeBody(MFARequiredBody.self, from: data))?.mfa_providers ?? ["totp"]
+        throw providers.contains("totp") ? PassboltError.mfaRequired : PassboltError.mfaUnsupported
+    }
+
+    public func verifyMFA(code: String) async throws {
+        guard accessToken != nil else { throw PassboltError.notConfigured }
+        let (_, status) = try await send("POST", "/mfa/verify/totp.json", body: ["totp": code, "remember": 0], token: accessToken)
+        switch status {
+        case 200: return
+        case 400: throw PassboltError.mfaInvalidCode
+        case 401: throw PassboltError.authenticationExpired
+        default: throw PassboltError.serverError(status)
+        }
     }
 
     // MARK: Resources

@@ -10,6 +10,9 @@ public enum PassboltError: Error, Equatable, LocalizedError {
     case certificateInvalid
     case authenticationFailed
     case authenticationExpired
+    case mfaRequired
+    case mfaUnsupported
+    case mfaInvalidCode
     case serverError(Int)
     case invalidResponse
     case decryptionFailed
@@ -30,6 +33,9 @@ public enum PassboltError: Error, Equatable, LocalizedError {
         case .certificateInvalid: return "Your Passbolt endpoint certificate could not be verified."
         case .authenticationFailed: return "Authentication failed. Check your user ID and key."
         case .authenticationExpired: return "Authentication expired. Please authenticate again."
+        case .mfaRequired: return "Multi-factor authentication is required."
+        case .mfaUnsupported: return "Your account uses an MFA method PassBar can't complete yet. Only authenticator-app (TOTP) codes are supported."
+        case .mfaInvalidCode: return "That code was not accepted. Try the next one."
         case .serverError(let code): return "Passbolt returned an error (HTTP \(code))."
         case .invalidResponse: return "Your Passbolt instance returned an unexpected response."
         case .decryptionFailed: return "Unable to decrypt resource."

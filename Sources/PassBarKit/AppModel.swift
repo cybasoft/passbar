@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-public enum LockState: Equatable { case unconfigured, locked, unlocking, unlocked }
+public enum LockState: Equatable { case unconfigured, locked, unlocking, awaitingMFA, unlocked }
 
 /// Everything shown for the selected resource. Cleared as soon as the user leaves it.
 public struct ResourceDetail {
@@ -37,7 +37,9 @@ public final class AppModel: ObservableObject {
     private var client: PassboltClient?
     private var lastActivity = Date()
     private var inactivityTask: Task<Void, Never>?
-
+    /// First-time setup waiting on an MFA code; secrets are only stored once it succeeds.
+    private var pendingSetup: (url: URL, userId: String, privateKey: String, passphrase: String)?
+    private static let mfaTimeoutNanoseconds: UInt64 = 120_000_000_000
     public init(preferences: Preferences, store: SecretStore, authenticator: LocalAuthenticator,
                 clipboard: ClipboardManager, makeClient: @escaping (URL, String, String?) throws -> PassboltClient) {
         self.preferences = preferences; self.store = store; self.authenticator = authenticator
@@ -60,18 +62,28 @@ public final class AppModel: ObservableObject {
         do {
             let c = try makeClient(url, uid, nil)
             try await c.unlock(privateKey: privateKey, passphrase: passphrase)
-            try await c.authenticate()
-            try store.set(Data(privateKey.utf8), for: .privateKey)
-            try store.set(Data(passphrase.utf8), for: .passphrase)
-            preferences.serverURL = url.absoluteString
-            preferences.userId = uid
-            preferences.serverFingerprint = await c.serverFingerprint ?? ""
             client = c
-            try await finishUnlock(c)
+            pendingSetup = (url, uid, privateKey, passphrase)
+            try await c.authenticate()
+            try await completeSetup()
+        } catch PassboltError.mfaRequired {
+            beginMFA()
         } catch {
+            pendingSetup = nil
             await client?.lock(); client = nil
             errorMessage = message(for: error)
         }
+    }
+
+    private func completeSetup() async throws {
+        guard let c = client, let s = pendingSetup else { return }
+        try store.set(Data(s.privateKey.utf8), for: .privateKey)
+        try store.set(Data(s.passphrase.utf8), for: .passphrase)
+        preferences.serverURL = s.url.absoluteString
+        preferences.userId = s.userId
+        preferences.serverFingerprint = await c.serverFingerprint ?? ""
+        pendingSetup = nil
+        try await finishUnlock(c)
     }
 
     // MARK: Lock / unlock
@@ -90,14 +102,51 @@ public final class AppModel: ObservableObject {
             let pinned = preferences.serverFingerprint.isEmpty ? nil : preferences.serverFingerprint
             let c = try makeClient(url, preferences.userId, pinned)
             try await c.unlock(privateKey: key, passphrase: pass)
-            try await c.authenticate()
             client = c
+            try await c.authenticate()
             try await finishUnlock(c)
+        } catch PassboltError.mfaRequired {
+            beginMFA()
         } catch {
             await client?.lock(); client = nil
             state = .locked
             errorMessage = message(for: error)
         }
+    }
+
+    private func beginMFA() {
+        state = .awaitingMFA
+        // The unlocked key stays in memory while we wait, so don't wait forever.
+        inactivityTask?.cancel()
+        inactivityTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: Self.mfaTimeoutNanoseconds)
+            guard !Task.isCancelled else { return }
+            await self?.cancelMFA()
+        }
+    }
+
+    /// Completes sign-in with an authenticator-app code. A wrong code leaves the prompt open.
+    public func submitMFA(_ code: String) async {
+        guard state == .awaitingMFA, let c = client else { return }
+        errorMessage = nil
+        do {
+            try await c.verifyMFA(code: code.filter(\.isNumber))
+            if pendingSetup != nil { try await completeSetup() } else { try await finishUnlock(c) }
+        } catch PassboltError.mfaInvalidCode {
+            errorMessage = message(for: PassboltError.mfaInvalidCode)
+        } catch {
+            await cancelMFA()
+            errorMessage = message(for: error)
+        }
+    }
+
+    public func cancelMFA() async {
+        guard state == .awaitingMFA else { return }
+        inactivityTask?.cancel(); inactivityTask = nil
+        let wasSetup = pendingSetup != nil
+        pendingSetup = nil
+        await client?.lock(); client = nil
+        state = wasSetup ? .unconfigured : .locked
     }
 
     private func finishUnlock(_ c: PassboltClient) async throws {
@@ -113,6 +162,7 @@ public final class AppModel: ObservableObject {
     public func lock() async {
         shouldAutoPromptUnlock = false
         inactivityTask?.cancel(); inactivityTask = nil
+        pendingSetup = nil
         clipboard.clearIfUnchanged()
         detail = nil; results = []; query = ""; isCreating = false; draft = NewResource()
         cancelEdit()

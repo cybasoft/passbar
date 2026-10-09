@@ -10,6 +10,7 @@ struct RootView: View {
             switch model.state {
             case .unconfigured: SetupView(model: model)
             case .locked, .unlocking: LockedView(model: model)
+            case .awaitingMFA: MFAView(model: model)
             case .unlocked:
                 if model.editingResource != nil { CreateView(model: model) }
                 else if let detail = model.detail { DetailView(model: model, detail: detail) }
@@ -62,6 +63,46 @@ struct FooterBar: View {
                 .accessibilityLabel("Quit")
         }
         .buttonStyle(.plain).padding(.horizontal, 12).padding(.vertical, 8)
+    }
+}
+
+struct MFAView: View {
+    @ObservedObject var model: AppModel
+    @State private var code = ""
+    @State private var busy = false
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: "lock.shield.fill").font(.system(size: 40)).foregroundStyle(.secondary)
+            Text("Verification code").font(.title2.bold())
+            Text("Enter the code from your authenticator app.").foregroundStyle(.secondary)
+            TextField("123456", text: $code)
+                .textFieldStyle(.roundedBorder).multilineTextAlignment(.center)
+                .font(.title3.monospacedDigit()).frame(width: 140)
+                .focused($focused).onSubmit(submit)
+            HStack {
+                Button("Cancel") { Task { await model.cancelMFA() } }
+                Button("Verify", action: submit)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(busy || code.filter(\.isNumber).count < 6)
+            }
+            if busy { ProgressView().controlSize(.small) }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .onAppear { focused = true }
+    }
+
+    private func submit() {
+        guard !busy, code.filter(\.isNumber).count >= 6 else { return }
+        busy = true
+        let entered = code
+        Task {
+            await model.submitMFA(entered)
+            code = ""; busy = false
+        }
     }
 }
 
