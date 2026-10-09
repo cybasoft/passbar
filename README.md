@@ -50,15 +50,17 @@ access prompts from reappearing after each rebuild).
    `/app/users/view/<uuid>`.
 2. Have your **private key file** (`.asc`, from your Passbolt recovery kit) and its passphrase.
 3. Click the menu-bar icon → enter the https server URL, user ID, choose the key file, enter the
-   passphrase → Connect. Nothing is stored unless login succeeds.
+  passphrase → Connect. If your account uses authenticator-app MFA, enter the verification code
+  when prompted. Nothing is stored unless login succeeds.
 
 ## How authentication works
 
 Passbolt's documented GpgJwtAuth flow: fetch the server public key (`GET /auth/verify.json`), sign a
 challenge with your key and encrypt it to the server (`POST /auth/jwt/login.json`), decrypt and
 verify the server's signed reply, and use the returned JWT as a Bearer token. The server key
-fingerprint is pinned on first login; a different key later is rejected. Tokens live in memory only.
-On token expiry the app re-runs login instead of persisting a refresh token.
+fingerprint is pinned on first login; a different key later is rejected. Authenticator-app (TOTP)
+MFA is supported. Tokens live in memory only; when server authentication expires, the vault locks
+and must be unlocked again.
 
 Resource metadata (name, username, URL) is decrypted locally after unlock (v5 shared/personal
 metadata keys, plus plaintext v4 metadata). Secrets are fetched and decrypted only when you open a

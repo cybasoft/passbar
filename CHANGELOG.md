@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.2
+
+- Support authenticator-app (TOTP) multi-factor authentication.
+- Lock the vault when Passbolt authentication expires.
+- Clear the saved server URL and user ID when clearing credentials.
+
 ## 0.9.1
 
 - Edit supported records.
