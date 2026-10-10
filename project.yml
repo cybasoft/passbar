@@ -1,0 +1,45 @@
+name: PassBar
+options:
+  bundleIdPrefix: com.cybasoft
+  deploymentTarget: { macOS: "14.0" }
+packages:
+  PassBarKit:
+    path: .
+targets:
+  PassBar:
+    type: application
+    platform: macOS
+    sources: [App]
+    dependencies:
+      - package: PassBarKit
+        product: PassBarKit
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleName: PassBar
+        CFBundleDisplayName: PassBar
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSUIElement: true            # menu-bar only, no Dock icon
+        LSMinimumSystemVersion: "14.0"
+        NSHumanReadableCopyright: "MIT License"
+        LSApplicationCategoryType: public.app-category.utilities
+    entitlements:
+      path: App/PassBar.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true            # talk to the Passbolt server
+        com.apple.security.files.user-selected.read-only: true  # import key file chosen by the user
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        PRODUCT_BUNDLE_IDENTIFIER: com.cybasoft.passbar
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: UA5R4WVYA6
+        CODE_SIGN_IDENTITY: "Apple Development"
+        SWIFT_VERSION: "5.9"
+        ARCHS: "arm64 x86_64"
+        ONLY_ACTIVE_ARCH: NO

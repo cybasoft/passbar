@@ -1,0 +1,9 @@
+build/
+.build/
+PassBar.xcodeproj/xcuserdata/
+*.xcuserstate
+Pgpbridge.xcframework/
+PGPBridge/go.work
+.temp
+.claude/settings.local.json
+.swiftpm/
