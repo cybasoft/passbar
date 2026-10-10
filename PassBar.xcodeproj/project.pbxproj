@@ -28,10 +28,10 @@
 		38CFAFB2D5723E5180DE29A7 /* PassBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassBarApp.swift; sourceTree = "<group>"; };
 		43C8B071CB94B2377E74C816 /* PassBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PassBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		45B276C2F0489F54E084C297 /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
-		5FF25F3FB51C84EA0BEB6802 /* passbolt */ = {isa = PBXFileReference; lastKnownFileType = folder; name = passbolt; path = .; sourceTree = SOURCE_ROOT; };
 		65274EC47D6A35DD53E05044 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		6681714BCAAB02D7D98708DD /* HotKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyManager.swift; sourceTree = "<group>"; };
 		708104FFE13C404315DB45E5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		8B37B42276CFF659E4605FD6 /* passbar */ = {isa = PBXFileReference; lastKnownFileType = folder; name = passbar; path = .; sourceTree = SOURCE_ROOT; };
 		9C5BDC0B3F0049A334C44F66 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		B503CDC68BB3CAC89FD2D92D /* PassBar.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PassBar.entitlements; sourceTree = "<group>"; };
 		F71D13325AB1B95644025F68 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -52,7 +52,7 @@
 		0EF345A75A38F35DF0E7B7D4 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				5FF25F3FB51C84EA0BEB6802 /* passbolt */,
+				8B37B42276CFF659E4605FD6 /* passbar */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
