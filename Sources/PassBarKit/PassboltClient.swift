@@ -6,7 +6,7 @@ public protocol PassboltClient: Sendable {
     /// Passbolt GpgJwtAuth login. Tokens are kept in memory only.
     func authenticate() async throws
     /// Completes login with an authenticator-app code after `authenticate()` threw `mfaRequired`.
-    func verifyMFA(code: String) async throws
+    func verifyMFA(code: String, remember: Bool) async throws
     /// Fetches resources and decrypts their metadata into an in-memory index.
     func loadResources() async throws -> [PassboltResource]
     func searchResources(query: String) async -> [PassboltResource]
@@ -142,9 +142,10 @@ public actor PassboltAPIClient: PassboltClient {
         throw providers.contains("totp") ? PassboltError.mfaRequired : PassboltError.mfaUnsupported
     }
 
-    public func verifyMFA(code: String) async throws {
+    public func verifyMFA(code: String, remember: Bool) async throws {
         guard accessToken != nil else { throw PassboltError.notConfigured }
-        let (_, status) = try await send("POST", "/mfa/verify/totp.json", body: ["totp": code, "remember": 0], token: accessToken)
+        let (_, status) = try await send("POST", "/mfa/verify/totp.json",
+                                         body: ["totp": code, "remember": remember ? 1 : 0], token: accessToken)
         switch status {
         case 200: return
         case 400: throw PassboltError.mfaInvalidCode

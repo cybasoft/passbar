@@ -68,9 +68,13 @@ final class ClientTests: XCTestCase {
         try await c.unlock(privateKey: "PRIV:user", passphrase: "x")
         do { try await c.authenticate(); XCTFail() } catch { XCTAssertEqual(error as? PassboltError, .mfaRequired) }
         t.routes["/mfa/verify/totp.json"] = (200, [:])
-        try await c.verifyMFA(code: "123456")
+        try await c.verifyMFA(code: "123456", remember: true)
+        let rememberRequest = try XCTUnwrap(t.requests.last { $0.url?.path == "/mfa/verify/totp.json" })
+        let rememberBody = try XCTUnwrap(JSONSerialization.jsonObject(with: rememberRequest.httpBody!) as? [String: Any])
+        XCTAssertEqual(rememberBody["remember"] as? Int, 1)
         t.routes["/mfa/verify/totp.json"] = (400, [:])
-        do { try await c.verifyMFA(code: "1"); XCTFail() } catch { XCTAssertEqual(error as? PassboltError, .mfaInvalidCode) }
+        do { try await c.verifyMFA(code: "1", remember: false); XCTFail() }
+        catch { XCTAssertEqual(error as? PassboltError, .mfaInvalidCode) }
     }
 
     func testResourceParsingV5AndV4() async throws {

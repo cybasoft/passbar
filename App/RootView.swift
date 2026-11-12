@@ -70,6 +70,7 @@ struct MFAView: View {
     @ObservedObject var model: AppModel
     @State private var code = ""
     @State private var busy = false
+    @State private var rememberMFA = false
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -82,6 +83,8 @@ struct MFAView: View {
                 .textFieldStyle(.roundedBorder).multilineTextAlignment(.center)
                 .font(.title3.monospacedDigit()).frame(width: 140)
                 .focused($focused).onSubmit(submit)
+            Toggle("Remember MFA for 30 days", isOn: $rememberMFA)
+                .toggleStyle(.checkbox)
             HStack {
                 Button("Cancel") { Task { await model.cancelMFA() } }
                 Button("Verify", action: submit)
@@ -99,8 +102,9 @@ struct MFAView: View {
         guard !busy, code.filter(\.isNumber).count >= 6 else { return }
         busy = true
         let entered = code
+        let remember = rememberMFA
         Task {
-            await model.submitMFA(entered)
+            await model.submitMFA(entered, remember: remember)
             code = ""; busy = false
         }
     }

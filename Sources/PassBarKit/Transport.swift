@@ -12,13 +12,15 @@ public extension HTTPTransport {
 }
 
 /// Real transport. Uses default TLS validation (no custom trust handling),
-/// in-memory cookies only (Passbolt's MFA cookie), no disk cache, and refuses non-HTTPS redirects.
+/// persists server-issued MFA remember cookies, disables the URL cache, and refuses non-HTTPS redirects.
 public final class URLSessionTransport: NSObject, HTTPTransport, URLSessionTaskDelegate, @unchecked Sendable {
     private var session: URLSession!
 
     public override init() {
         super.init()
-        let cfg = URLSessionConfiguration.ephemeral
+        let cfg = URLSessionConfiguration.default
+        cfg.httpCookieStorage = .shared
+        cfg.urlCredentialStorage = nil
         cfg.urlCache = nil
         cfg.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         cfg.timeoutIntervalForRequest = 30

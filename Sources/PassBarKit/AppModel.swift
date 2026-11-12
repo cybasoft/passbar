@@ -126,11 +126,11 @@ public final class AppModel: ObservableObject {
     }
 
     /// Completes sign-in with an authenticator-app code. A wrong code leaves the prompt open.
-    public func submitMFA(_ code: String) async {
+    public func submitMFA(_ code: String, remember: Bool = false) async {
         guard state == .awaitingMFA, let c = client else { return }
         errorMessage = nil
         do {
-            try await c.verifyMFA(code: code.filter(\.isNumber))
+            try await c.verifyMFA(code: code.filter(\.isNumber), remember: remember)
             if pendingSetup != nil { try await completeSetup() } else { try await finishUnlock(c) }
         } catch PassboltError.mfaInvalidCode {
             errorMessage = message(for: PassboltError.mfaInvalidCode)

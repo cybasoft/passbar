@@ -172,12 +172,14 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(m.errorMessage, PassboltError.mfaInvalidCode.localizedDescription)
 
         t.routes["/mfa/verify/totp.json"] = (200, [:])
-        await m.submitMFA("123 456")
+        await m.submitMFA("123 456", remember: true)
         XCTAssertEqual(m.state, .unlocked)
         XCTAssertNotNil(try store.get(.privateKey))
         let post = t.requests.last { $0.url?.path == "/mfa/verify/totp.json" }
         XCTAssertEqual(post?.httpMethod, "POST")
         XCTAssertEqual(String(data: post?.httpBody ?? Data(), encoding: .utf8)?.contains("123456"), true)
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: post!.httpBody!) as? [String: Any])
+        XCTAssertEqual(body["remember"] as? Int, 1)
     }
 
     func testCancelMFAReturnsToLocked() async {
