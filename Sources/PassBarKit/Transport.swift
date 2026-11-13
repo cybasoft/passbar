@@ -3,12 +3,14 @@ import Foundation
 /// Minimal HTTP abstraction so the API client can be tested with mock responses.
 public protocol HTTPTransport: Sendable {
     func send(_ request: URLRequest) async throws -> (data: Data, status: Int)
+    func cookieValue(named name: String, for url: URL) -> String?
     /// Drops any session state (cookies) once the client is done.
     func invalidate()
 }
 
 public extension HTTPTransport {
     func invalidate() {}
+    func cookieValue(named name: String, for url: URL) -> String? { nil }
 }
 
 /// Real transport. Uses default TLS validation (no custom trust handling),
@@ -29,6 +31,10 @@ public final class URLSessionTransport: NSObject, HTTPTransport, URLSessionTaskD
     }
 
     public func invalidate() { session.invalidateAndCancel() }
+
+    public func cookieValue(named name: String, for url: URL) -> String? {
+        session.configuration.httpCookieStorage?.cookies(for: url)?.first { $0.name == name }?.value
+    }
 
     public func send(_ request: URLRequest) async throws -> (data: Data, status: Int) {
         guard request.url?.scheme == "https" else { throw PassboltError.insecureServerURL }

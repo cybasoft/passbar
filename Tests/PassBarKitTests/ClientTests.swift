@@ -61,6 +61,82 @@ final class ClientTests: XCTestCase {
         do { _ = try await c.loadResources(); XCTFail() } catch { XCTAssertEqual(error as? PassboltError, .authenticationExpired) }
     }
 
+    func testExpiredAccessTokenRefreshesAndUsesRotatedCookieOnNextExpiry() async throws {
+        let t = MockTransport.standard()
+        let c = try makeClient(t)
+        try await c.unlock(privateKey: "PRIV:user", passphrase: "x")
+        try await c.authenticate()
+        let initialAuthorization = try XCTUnwrap(t.requests.last?.value(forHTTPHeaderField: "Authorization"))
+        var expiredAccess = String(initialAuthorization.dropFirst("Bearer ".count))
+        var previousRefresh: String?
+        for _ in 0..<2 {
+            let access = UUID().uuidString
+            let refresh = UUID().uuidString
+            t.rejectedAccessToken = expiredAccess
+            t.routes["/auth/jwt/refresh.json"] = (200, ["access_token": access])
+            t.cookies["refresh_token"] = refresh
+            let resources = try await c.loadResources()
+            XCTAssertEqual(resources.count, 3)
+            let request = try XCTUnwrap(t.requests.last { $0.url?.path == "/auth/jwt/refresh.json" })
+            let body = try XCTUnwrap(JSONSerialization.jsonObject(with: request.httpBody!) as? [String: String])
+            XCTAssertEqual(body["user_id"], "u1")
+            XCTAssertNotNil(body["refresh_token"])
+            if let previousRefresh { XCTAssertEqual(body["refresh_token"], previousRefresh) }
+            XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+            XCTAssertEqual(t.requests.last?.value(forHTTPHeaderField: "Authorization"), "Bearer \(access)")
+            expiredAccess = access
+            previousRefresh = refresh
+        }
+        XCTAssertEqual(t.requests.filter { $0.url?.path == "/auth/jwt/refresh.json" }.count, 2)
+    }
+
+    func testRefreshRetriesOriginalRequestOnlyOnce() async throws {
+        let t = MockTransport.standard()
+        let c = try makeClient(t)
+        try await c.unlock(privateKey: "PRIV:user", passphrase: "x")
+        try await c.authenticate()
+        t.routes["/resources.json"] = (401, [:])
+        t.routes["/auth/jwt/refresh.json"] = (200, ["access_token": UUID().uuidString])
+        t.cookies["refresh_token"] = UUID().uuidString
+        do { _ = try await c.loadResources(); XCTFail() }
+        catch { XCTAssertEqual(error as? PassboltError, .authenticationExpired) }
+        XCTAssertEqual(t.requests.filter { $0.url?.path == "/resources.json" }.count, 2)
+        XCTAssertEqual(t.requests.filter { $0.url?.path == "/auth/jwt/refresh.json" }.count, 1)
+    }
+
+    func testRejectedRefreshRequiresAuthentication() async throws {
+        let t = MockTransport.standard()
+        let c = try makeClient(t)
+        try await c.unlock(privateKey: "PRIV:user", passphrase: "x")
+        try await c.authenticate()
+        t.routes["/resources.json"] = (401, [:])
+        t.routes["/auth/jwt/refresh.json"] = (400, [:])
+        do { _ = try await c.loadResources(); XCTFail() }
+        catch { XCTAssertEqual(error as? PassboltError, .authenticationExpired) }
+        XCTAssertEqual(t.requests.filter { $0.url?.path == "/resources.json" }.count, 1)
+    }
+
+    func testLockDuringRefreshDoesNotRestoreSession() async throws {
+        let t = MockTransport.standard()
+        let c = try makeClient(t)
+        try await c.unlock(privateKey: "PRIV:user", passphrase: "x")
+        try await c.authenticate()
+        t.routes["/resources.json"] = (401, [:])
+        t.routes["/auth/jwt/refresh.json"] = (200, ["access_token": UUID().uuidString])
+        t.cookies["refresh_token"] = UUID().uuidString
+        let gate = MockTransport.RequestGate()
+        t.refreshGate = gate
+        let loading = Task { try await c.loadResources() }
+        await gate.waitForArrival()
+        await c.lock()
+        await gate.open()
+        do { _ = try await loading.value; XCTFail() }
+        catch { XCTAssertEqual(error as? PassboltError, .notConfigured) }
+        XCTAssertEqual(t.requests.filter { $0.url?.path == "/resources.json" }.count, 1)
+        do { _ = try await c.loadResources(); XCTFail() }
+        catch { XCTAssertEqual(error as? PassboltError, .notConfigured) }
+    }
+
     func testMFAAccountThrowsMFARequiredThenVerifies() async throws {
         let t = MockTransport.standard()
         t.routes["/users/me.json"] = (403, [:])

@@ -203,6 +203,27 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(m.state, .unlocked)
     }
 
+    func testNeverAutoLockRenewsExpiredSessionWithoutLogin() async throws {
+        let t = MockTransport.standard()
+        let m = makeModel(transport: t)
+        await m.configure(serverURL: "https://passbolt.example", userId: uid, privateKey: "PRIV:user", passphrase: "p")
+        m.preferences.autoLockMinutes = 0
+        let authorization = try XCTUnwrap(t.requests.last?.value(forHTTPHeaderField: "Authorization"))
+        t.rejectedAccessToken = String(authorization.dropFirst("Bearer ".count))
+        t.routes["/auth/jwt/refresh.json"] = (200, ["access_token": UUID().uuidString])
+        t.cookies["refresh_token"] = UUID().uuidString
+
+        await m.checkInactivity(now: Date().addingTimeInterval(86_400))
+        await m.select(PassboltResource(id: "r1", name: "AWS Production", resourceTypeId: "t3"))
+
+        XCTAssertEqual(m.state, .unlocked)
+        XCTAssertNil(m.errorMessage)
+        XCTAssertNotNil(m.detail?.secret.password)
+        XCTAssertEqual(t.requests.filter { $0.url?.path == "/auth/jwt/login.json" }.count, 1)
+        XCTAssertEqual(t.requests.filter { $0.url?.path == "/auth/jwt/refresh.json" }.count, 1)
+        await m.lock()
+    }
+
     func testLockClearsClipboardAndDetail() async throws {
         let pb = FakePasteboard()
         let m = makeModel(pb: pb)

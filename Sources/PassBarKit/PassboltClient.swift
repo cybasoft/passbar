@@ -25,6 +25,7 @@ public protocol PassboltClient: Sendable {
 /// Talks to the documented Passbolt REST API (see open-api-specs.yaml):
 ///  GET  /auth/verify.json            server public key
 ///  POST /auth/jwt/login.json         GpgJwtAuth login
+///  POST /auth/jwt/refresh.json       renew an expired access token
 ///  POST /auth/jwt/logout.json
 ///  GET  /resource-types.json
 ///  GET  /metadata/keys.json          shared metadata keys (v5)
@@ -49,6 +50,8 @@ public actor PassboltAPIClient: PassboltClient {
     private var sharedMetadataKey: (id: String, armored: String)?
     private var accessToken: String?
     private var refreshToken: String?
+    private var refreshTask: Task<Void, Error>?
+    private var sessionGeneration = UUID()
     private var typeSlugs: [String: String] = [:]
     private var index: [PassboltResource] = []
     public private(set) var verifiedServerFingerprint: String?
@@ -75,6 +78,8 @@ public actor PassboltAPIClient: PassboltClient {
     }
 
     public func lock() async {
+        sessionGeneration = UUID()
+        refreshTask?.cancel(); refreshTask = nil
         let refresh = refreshToken
         let access = accessToken
         userKey?.close(); userKey = nil
@@ -82,7 +87,8 @@ public actor PassboltAPIClient: PassboltClient {
         accessToken = nil; refreshToken = nil
         index = []; typeSlugs = [:]
         if let refresh, let access {   // best effort, errors ignored
-            _ = try? await send("POST", "/auth/jwt/logout.json", body: ["refresh_token": refresh], token: access)
+            _ = try? await send("POST", "/auth/jwt/logout.json", body: ["refresh_token": refresh],
+                                token: access, renewSession: false)
         }
         transport.invalidate()
     }
@@ -102,6 +108,8 @@ public actor PassboltAPIClient: PassboltClient {
 
     public func authenticate() async throws {
         guard let key = userKey else { throw PassboltError.notConfigured }
+        sessionGeneration = UUID()
+        refreshTask?.cancel(); refreshTask = nil
         accessToken = nil; refreshToken = nil
 
         let verify: VerifyBody = try await get("/auth/verify.json", token: nil, failure: .authenticationFailed)
@@ -136,7 +144,8 @@ public actor PassboltAPIClient: PassboltClient {
 
     /// With MFA enabled the server rejects every call until a code is verified; probe once so we can ask for it.
     private func requireMFAIfNeeded() async throws {
-        let (data, status) = try await send("GET", "/users/me.json", body: nil, token: accessToken)
+        let (data, status) = try await send("GET", "/users/me.json", body: nil,
+                                          token: accessToken, renewSession: false)
         guard status == 401 || status == 403 else { return }
         let providers = (try? decodeBody(MFARequiredBody.self, from: data))?.mfa_providers ?? ["totp"]
         throw providers.contains("totp") ? PassboltError.mfaRequired : PassboltError.mfaUnsupported
@@ -479,6 +488,41 @@ public actor PassboltAPIClient: PassboltClient {
 
     // MARK: HTTP helpers
 
+    private struct RefreshBody: Decodable {
+        let access_token: String
+        let refresh_token: String?
+    }
+
+    private func refreshSession(after expiredToken: String) async throws {
+        guard userKey != nil else { throw PassboltError.notConfigured }
+        if accessToken != expiredToken { return }
+        if let refreshTask { return try await refreshTask.value }
+        guard let refreshToken else { throw PassboltError.authenticationExpired }
+        let generation = sessionGeneration
+        let task = Task {
+            let (data, status) = try await self.sendRequest("POST", "/auth/jwt/refresh.json",
+                body: ["user_id": self.userId, "refresh_token": refreshToken], token: nil)
+            guard self.sessionGeneration == generation, self.userKey != nil else {
+                throw PassboltError.notConfigured
+            }
+            switch status {
+            case 200: break
+            case 400, 401, 403, 404: throw PassboltError.authenticationExpired
+            default: throw PassboltError.serverError(status)
+            }
+            let reply = try self.decodeBody(RefreshBody.self, from: data)
+            // Passbolt rotates the refresh token in an HttpOnly cookie.
+            guard !reply.access_token.isEmpty,
+                  let rotated = reply.refresh_token ?? self.transport.cookieValue(named: "refresh_token", for: self.baseURL),
+                  !rotated.isEmpty else { throw PassboltError.invalidResponse }
+            self.accessToken = reply.access_token
+            self.refreshToken = rotated
+        }
+        refreshTask = task
+        defer { if sessionGeneration == generation { refreshTask = nil } }
+        try await task.value
+    }
+
     private struct Envelope<T: Decodable>: Decodable { let body: T }
 
     private func decodeBody<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
@@ -497,7 +541,18 @@ public actor PassboltAPIClient: PassboltClient {
         }
     }
 
-    private func send(_ method: String, _ path: String, body: Any?, token: String?) async throws -> (Data, Int) {
+    private func send(_ method: String, _ path: String, body: Any?, token: String?,
+                      renewSession: Bool = true) async throws -> (Data, Int) {
+        let generation = sessionGeneration
+        let response = try await sendRequest(method, path, body: body, token: token)
+        guard renewSession, response.1 == 401, let token else { return response }
+        guard generation == sessionGeneration, userKey != nil else { throw PassboltError.notConfigured }
+        try await refreshSession(after: token)
+        guard generation == sessionGeneration, userKey != nil else { throw PassboltError.notConfigured }
+        return try await sendRequest(method, path, body: body, token: accessToken)
+    }
+
+    private func sendRequest(_ method: String, _ path: String, body: Any?, token: String?) async throws -> (Data, Int) {
         guard let url = URL(string: baseURL.absoluteString.trimmingSuffix("/") + path) else { throw PassboltError.invalidServerURL }
         var req = URLRequest(url: url)
         req.httpMethod = method

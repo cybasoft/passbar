@@ -37,11 +37,21 @@ final class MockTransport: HTTPTransport, @unchecked Sendable {
     var requests: [URLRequest] = []
     var error: Error?
     var loginStatus = 200
+    var rejectedAccessToken: String?
+    var cookies: [String: String] = [:]
+    var refreshGate: RequestGate?
+
+    func cookieValue(named name: String, for url: URL) -> String? { cookies[name] }
 
     func send(_ request: URLRequest) async throws -> (data: Data, status: Int) {
         requests.append(request)
         if let error { throw error }
         let path = request.url!.path
+        if path == "/auth/jwt/refresh.json", let refreshGate { await refreshGate.pause() }
+        if let rejectedAccessToken,
+           request.value(forHTTPHeaderField: "Authorization") == "Bearer \(rejectedAccessToken)" {
+            return (Data(), 401)
+        }
         if path == "/auth/jwt/login.json" {
             guard loginStatus == 200 else { return (Data(), loginStatus) }
             let body = try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: String]
@@ -55,6 +65,27 @@ final class MockTransport: HTTPTransport, @unchecked Sendable {
         if request.httpMethod == "POST", path == "/resources.json" { return try wrap(["id": "new-1"]) }
         guard let (status, body) = routes[path] else { return (Data(), 404) }
         return status == 200 ? try wrap(body) : (Data(), status)
+    }
+
+    actor RequestGate {
+        private var arrival: CheckedContinuation<Void, Never>?
+        private var response: CheckedContinuation<Void, Never>?
+        private var arrived = false
+
+        func pause() async {
+            arrived = true
+            arrival?.resume(); arrival = nil
+            await withCheckedContinuation { response = $0 }
+        }
+
+        func waitForArrival() async {
+            if arrived { return }
+            await withCheckedContinuation { arrival = $0 }
+        }
+
+        func open() {
+            response?.resume(); response = nil
+        }
     }
 
     private func wrap(_ body: Any) throws -> (Data, Int) {
