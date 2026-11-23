@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- Remember multi-factor authentication for 30 days when requested.
+- Automatically refresh expired authentication sessions.
+
 ## 0.9.2
 
 - Support authenticator-app (TOTP) multi-factor authentication.
