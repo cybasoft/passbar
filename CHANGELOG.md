@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.3
 
 - Fix autofill in Safari and Chrome: fields are now filled by pasting, so pages see real input.
 - Fill authenticator-code (2FA) fields with the credential's current code.
