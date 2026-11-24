@@ -120,7 +120,7 @@ final class ClipboardTests: XCTestCase {
 struct AllowAuth: LocalAuthenticator { func authenticate(reason: String) async throws {} }
 struct DenyAuth: LocalAuthenticator { func authenticate(reason: String) async throws { throw PassboltError.biometricsFailed } }
 
-final class FilledBox: @unchecked Sendable { var value: (String, String, String)? }
+final class FilledBox: @unchecked Sendable { var value: (String, FillCredential)? }
 
 final class PreferencesMigrationTests: XCTestCase {
     func testMigratesLegacySandboxSettingsOnce() throws {
@@ -357,7 +357,7 @@ final class AppModelTests: XCTestCase {
                                                    transport: MockTransport.standard(), pgp: MockPGP())
                          })
         let filled = FilledBox()
-        m.fillBrowser = { ctx, user, pass in filled.value = (ctx.host ?? "", user, pass); return nil }
+        m.fillBrowser = { ctx, credential in filled.value = (ctx.host ?? "", credential); return nil }
         await m.configure(serverURL: "https://passbolt.example", userId: uid, privateKey: "PRIV:user", passphrase: "p")
         m.refreshBrowserContext()
         try await Task.sleep(nanoseconds: 200_000_000)
@@ -365,8 +365,9 @@ final class AppModelTests: XCTestCase {
         let ok = await m.fillPage(r)
         XCTAssertTrue(ok)
         XCTAssertEqual(filled.value?.0, "aws.example.com")
-        XCTAssertEqual(filled.value?.1, r.username)
-        XCTAssertFalse(filled.value?.2.isEmpty ?? true)
+        XCTAssertEqual(filled.value?.1.username, r.username)
+        XCTAssertFalse(filled.value?.1.password.isEmpty ?? true)
+        XCTAssertEqual(filled.value?.1.oneTimeCode?.count, 8)
         XCTAssertEqual(m.preferences.recentResourceIds.first, "r1")
 
         filled.value = nil

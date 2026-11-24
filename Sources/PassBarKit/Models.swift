@@ -14,6 +14,17 @@ public struct BrowserContext: Equatable, Sendable {
     public var host: String? { url.host?.lowercased() }
 }
 
+/// What to put into a browser page. `oneTimeCode` is the current TOTP, when the credential has an authenticator key.
+public struct FillCredential: Sendable {
+    public let username: String
+    public let password: String
+    public let oneTimeCode: String?
+
+    public init(username: String, password: String, oneTimeCode: String? = nil) {
+        self.username = username; self.password = password; self.oneTimeCode = oneTimeCode
+    }
+}
+
 /// Searchable, non-secret resource metadata. Held in memory only.
 public struct PassboltResource: Identifiable, Equatable, Sendable {
     public let id: String

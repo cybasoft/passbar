@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Fix autofill in Safari and Chrome: fields are now filled by pasting, so pages see real input.
+- Fill authenticator-code (2FA) fields with the credential's current code.
+- Prompt for Accessibility once instead of on every click.
+
 ## 1.0.2
 
 - Suggest credentials matching the current browser tab.

@@ -37,7 +37,7 @@ public final class AppModel: ObservableObject {
     public static let accessibilityRequiredMessage = "Allow PassBar in Accessibility settings. If it is already listed, remove it (−) and add it again."
 
     /// Fills the current browser tab; returns nil on success or a user-facing error. Set by the app.
-    public var fillBrowser: @Sendable (BrowserContext, String, String) -> String? = { _, _, _ in
+    public var fillBrowser: @Sendable (BrowserContext, FillCredential) -> String? = { _, _ in
         "Filling pages isn't available."
     }
 
@@ -289,8 +289,9 @@ public final class AppModel: ObservableObject {
             let loaded: ResourceSecret
             if let secret { loaded = secret } else { loaded = try await client.getSecret(for: resource) }
             let fill = fillBrowser
-            let username = resource.username, password = loaded.password ?? ""
-            let failure = await Task.detached { fill(context, username, password) }.value
+            let credential = FillCredential(username: resource.username, password: loaded.password ?? "",
+                                            oneTimeCode: loaded.totp.flatMap { TOTP.code(for: $0) })
+            let failure = await Task.detached { fill(context, credential) }.value
             if let failure { errorMessage = failure; return false }
             preferences.recordRecent(resource.id)
             return true

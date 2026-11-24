@@ -35,8 +35,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.contentSize = NSSize(width: 360, height: 480)
         popover.contentViewController = NSHostingController(rootView: RootView(model: model, actions: actions))
 
-        model.fillBrowser = { [weak self] context, username, password in
-            BrowserAutofill.fill(context: context, username: username, password: password) {
+        model.fillBrowser = { [weak self] context, credential in
+            BrowserAutofill.fill(context: context, credential: credential) {
                 DispatchQueue.main.sync { self?.popover.performClose(nil) }
             }
         }
