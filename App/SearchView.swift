@@ -73,7 +73,7 @@ struct SearchView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(spacing: 0) {
+                        VStack(spacing: 0) {
                             ForEach(Array(model.results.enumerated()), id: \.element.id) { i, r in
                                 Row(resource: r, selected: i == highlighted, showDivider: i < model.results.count - 1)
                                     .id(r.id)
