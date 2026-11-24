@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.2
 
 - Suggest credentials matching the current browser tab.
 - Click a credential to fill the login fields on the current page, or use "Use on this page" from its details. Requires the Accessibility permission.
