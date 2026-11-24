@@ -24,7 +24,10 @@ struct CreateView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Button { back() } label: { Image(systemName: "chevron.left") }
+                Button { back() } label: {
+                    Image(systemName: "chevron.left").font(.system(size: 16, weight: .semibold))
+                        .frame(width: 44, height: 36).contentShape(Rectangle())
+                }
                     .buttonStyle(.plain).accessibilityLabel(isEditing ? "Cancel editing" : "Back to passwords")
                     .keyboardShortcut(.escape, modifiers: [])
                 Text(isEditing ? "Edit password" : "New password").font(.system(size: 18, weight: .bold))

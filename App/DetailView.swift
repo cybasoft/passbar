@@ -10,7 +10,10 @@ struct DetailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Button { model.clearDetail() } label: { Image(systemName: "chevron.left") }
+                Button { model.clearDetail() } label: {
+                    Image(systemName: "chevron.left").font(.system(size: 16, weight: .semibold))
+                        .frame(width: 44, height: 36).contentShape(Rectangle())
+                }
                     .buttonStyle(.plain).accessibilityLabel("Back to search")
                     .keyboardShortcut(.escape, modifiers: [])
                 Text(detail.resource.name).font(.headline).lineLimit(1)

@@ -13,9 +13,6 @@ struct SearchView: View {
             if model.browserContext == nil {
                 browserDetectionHint
             }
-            if let match = model.browserMatches.first {
-                browserUpdateBanner(match)
-            }
             searchField
             resultsCard
         }
@@ -49,22 +46,6 @@ struct SearchView: View {
         }
         .padding(8)
         .background(RoundedRectangle(cornerRadius: 10).fill(Color.secondary.opacity(0.08)))
-    }
-
-    private func browserUpdateBanner(_ match: PassboltResource) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(Color.accentColor)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Password changed?").font(.caption.bold())
-                Text(match.name).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            }
-            Spacer()
-            Button("Update") {
-                Task { await model.beginEdit(match) }
-            }.buttonStyle(.bordered).controlSize(.small)
-        }
-        .padding(8)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color.accentColor.opacity(0.10)))
     }
 
     private var searchField: some View {
