@@ -20,6 +20,7 @@ targets:
         CFBundleDisplayName: PassBar
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSAppleEventsUsageDescription: "PassBar reads the active browser tab URL to suggest matching Passbolt credentials."
         LSUIElement: true            # menu-bar only, no Dock icon
         LSMinimumSystemVersion: "14.0"
         NSHumanReadableCopyright: "MIT License"
@@ -29,7 +30,20 @@ targets:
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true            # talk to the Passbolt server
+        com.apple.security.automation.apple-events: true   # read the active browser tab URL
         com.apple.security.files.user-selected.read-only: true  # import key file chosen by the user
+        com.apple.security.temporary-exception.apple-events:   # sandboxed Apple events: browsers only
+          - com.apple.Safari
+          - com.apple.SafariTechnologyPreview
+          - com.google.Chrome
+          - com.google.Chrome.beta
+          - com.google.Chrome.canary
+          - org.chromium.Chromium
+          - com.brave.Browser
+          - com.microsoft.edgemac
+          - company.thebrowser.Browser
+          - com.vivaldi.Vivaldi
+          - com.operasoftware.Opera
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

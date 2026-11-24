@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let prefs = Preferences()
         return AppModel(preferences: prefs, store: KeychainSecretStore(), authenticator: SystemAuthenticator(),
                         clipboard: ClipboardManager(pasteboard: SystemPasteboard()),
+                        detectBrowserContext: { BrowserContextDetector.detect(bundleIdentifier: $0) },
                         makeClient: { url, uid, fp in
                             try PassboltAPIClient(serverURL: url, userId: uid, pinnedFingerprint: fp,
                                                   transport: URLSessionTransport(), pgp: GopenPGPProvider())
@@ -44,7 +45,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         AppActions(close: { [weak self] in self?.popover.performClose(nil) },
                    openSettings: { [weak self] in self?.showSettings() },
                    openServer: { [weak self] in self?.openServer() },
+                   openBrowserAutomation: { [weak self] in self?.openBrowserAutomation() },
                    quit: { NSApp.terminate(nil) })
+    }
+
+    private func openBrowserAutomation() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     private func openServer() {
@@ -70,6 +78,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @objc func togglePopover() {
         guard let button = statusItem.button else { return }
         if popover.isShown { popover.performClose(nil); return }
+        let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        let browserBundleIdentifier = front == Bundle.main.bundleIdentifier ? nil : front
+        model.refreshBrowserContext(bundleIdentifier: browserBundleIdentifier)
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
@@ -98,5 +109,6 @@ struct AppActions {
     var close: () -> Void
     var openSettings: () -> Void
     var openServer: () -> Void
+    var openBrowserAutomation: () -> Void
     var quit: () -> Void
 }

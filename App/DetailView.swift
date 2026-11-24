@@ -15,6 +15,10 @@ struct DetailView: View {
                     .keyboardShortcut(.escape, modifiers: [])
                 Text(detail.resource.name).font(.headline).lineLimit(1)
                 Spacer()
+                if model.browserMatches.contains(detail.resource) {
+                    Button("Update password") { Task { await model.beginEdit(detail.resource) } }
+                        .buttonStyle(.bordered).controlSize(.small)
+                }
                 Button { Task { await model.beginEdit(detail.resource) } } label: { Image(systemName: "pencil") }
                     .buttonStyle(.plain).accessibilityLabel("Edit")
             }

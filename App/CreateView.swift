@@ -6,9 +6,16 @@ struct CreateView: View {
     @ObservedObject var model: AppModel
     @State private var revealPassword = false
     @State private var busy = false
+    @State private var additionalURIs = ""
 
     private var isEditing: Bool { model.editingResource != nil }
     private var form: Binding<NewResource> { isEditing ? $model.editDraft : $model.draft }
+
+    private func parsedURIs(_ value: String) -> [String] {
+        value.components(separatedBy: .newlines).map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }.filter { !$0.isEmpty }
+    }
 
     private var canSave: Bool {
         !busy && !form.wrappedValue.name.trimmingCharacters(in: .whitespaces).isEmpty && !form.wrappedValue.password.isEmpty
@@ -27,10 +34,39 @@ struct CreateView: View {
                     .keyboardShortcut(.defaultAction).disabled(!canSave)
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
+            if isEditing, let host = model.browserContext?.host {
+                Text("Updating the credential used on \(host)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     field("Name") { TextField("Name", text: form.name) }
-                    field("URL") { TextField("https://", text: form.uri) }
+                    field("URL") {
+                        TextField("https://", text: form.uri)
+                            .onChange(of: form.uri.wrappedValue) { _, main in
+                                var all = main.isEmpty ? [] : [main]
+                                all.append(contentsOf: parsedURIs(additionalURIs).filter { $0 != main })
+                                form.uris.wrappedValue = all
+                            }
+                    }
+                    field("Additional URLs (one per line)") {
+                        TextEditor(text: $additionalURIs)
+                            .frame(height: 48)
+                            .scrollContentBackground(.hidden)
+                            .onChange(of: additionalURIs) { _, value in
+                                let extras = parsedURIs(value)
+                                var all = form.uri.wrappedValue.isEmpty ? [] : [form.uri.wrappedValue]
+                                all.append(contentsOf: extras.filter { $0 != form.uri.wrappedValue })
+                                if form.uri.wrappedValue.isEmpty, let first = extras.first {
+                                    form.uri.wrappedValue = first
+                                   all = [first] + extras.dropFirst().filter { $0 != first }
+                                }
+                                form.uris.wrappedValue = all
+                            }
+                    }
                     field("Username") { TextField("Username", text: form.username) }
                     field("Password") {
                         HStack {
@@ -54,6 +90,11 @@ struct CreateView: View {
             }
         }
         .disabled(busy)
+        .onAppear {
+            let existing = form.uris.wrappedValue
+            let extras = existing.filter { $0 != form.uri.wrappedValue }
+            additionalURIs = extras.joined(separator: "\n")
+        }
     }
 
     private func field<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {

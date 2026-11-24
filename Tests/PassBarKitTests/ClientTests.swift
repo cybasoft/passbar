@@ -251,6 +251,8 @@ final class ClientTests: XCTestCase {
         XCTAssertEqual(d.notes, "secret note")
         XCTAssertEqual(d.password, "pw-1")
         XCTAssertEqual(d.totpSecret, "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+        XCTAssertEqual(d.uri, "https://aws.example.com")
+        XCTAssertEqual(d.uris, ["https://aws.example.com", "https://b.example"])
     }
 
     func testUpdateReencryptsForEveryUserAndKeepsOtherMetadata() async throws {

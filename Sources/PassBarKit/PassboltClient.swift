@@ -257,7 +257,8 @@ public actor PassboltAPIClient: PassboltClient {
             return PassboltResource(id: dto.id, name: "(unable to decrypt)", resourceTypeId: dto.resource_type_id)
         }
         return PassboltResource(id: dto.id, name: meta.name ?? "(unnamed)", username: meta.username ?? "",
-                                uri: meta.uri ?? meta.uris?.first ?? "", resourceTypeId: dto.resource_type_id)
+                                uri: meta.uri ?? meta.uris?.first ?? "", uris: meta.uris ?? (meta.uri.map { [$0] } ?? []),
+                                resourceTypeId: dto.resource_type_id)
     }
 
     public func searchResources(query: String) -> [PassboltResource] {
@@ -335,7 +336,7 @@ public actor PassboltAPIClient: PassboltClient {
             if !draft.notes.isEmpty { secret["description"] = draft.notes }
             var metadata: [String: Any] = ["object_type": "PASSBOLT_RESOURCE_METADATA", "resource_type_id": tid,
                                            "name": draft.name, "username": draft.username,
-                                           "uris": draft.uri.isEmpty ? [] : [draft.uri]]
+                                           "uris": draft.uris]
             if !draft.description.isEmpty { metadata["description"] = draft.description }
             body["metadata"] = try key.signAndEncrypt(try JSONSerialization.data(withJSONObject: metadata), to: shared.armored)
             body["metadata_key_id"] = shared.id
@@ -361,7 +362,7 @@ public actor PassboltAPIClient: PassboltClient {
         }
         let created = try decodeBody(CreatedDTO.self, from: data)
         let resource = PassboltResource(id: created.id, name: draft.name, username: draft.username,
-                                        uri: draft.uri, resourceTypeId: typeIdUsed)
+                                        uri: draft.uri, uris: draft.uris, resourceTypeId: typeIdUsed)
         index.append(resource)
         return resource
     }
@@ -408,7 +409,17 @@ public actor PassboltAPIClient: PassboltClient {
     public func editableDraft(for resource: PassboltResource) async throws -> NewResource {
         _ = try editFormat(typeId: resource.resourceTypeId)
         let secret = try await getSecret(for: resource)
-        return NewResource(name: resource.name, uri: resource.uri, username: resource.username,
+        var uris = resource.uris
+        if let current = try? await fetchResource(resource.id),
+           let metadata = try? decryptMetadata(current) {
+            if let detailedURIs = metadata["uris"] as? [String], !detailedURIs.isEmpty {
+                uris = detailedURIs
+            } else if let detailedURI = metadata["uri"] as? String {
+                uris = [detailedURI]
+            }
+        }
+        let uri = uris.first ?? resource.uri
+        return NewResource(name: resource.name, uri: uri, uris: uris, username: resource.username,
                            password: secret.password ?? "", totpSecret: secret.totp?.secretKey ?? "",
                            notes: secret.description ?? "", description: secret.metadataDescription ?? "")
     }
@@ -444,12 +455,25 @@ public actor PassboltAPIClient: PassboltClient {
             secret["object_type"] = "PASSBOLT_SECRET_DATA"
             if !draft.notes.isEmpty { secret["description"] = draft.notes }
             var metadata = try decryptMetadata(current)   // preserves fields this form doesn't edit
-            let oldURIs = metadata["uris"] as? [String] ?? []
+            let existingURIs = (metadata["uris"] as? [String])
+                ?? ((metadata["uri"] as? String).map { [$0] } ?? [])
             metadata["object_type"] = "PASSBOLT_RESOURCE_METADATA"
             metadata["resource_type_id"] = typeId
             metadata["name"] = draft.name
             metadata["username"] = draft.username
-            metadata["uris"] = (draft.uri.isEmpty ? [] : [draft.uri]) + oldURIs.dropFirst()
+            var finalURIs = draft.uris.isEmpty ? (draft.uri.isEmpty ? [] : [draft.uri]) : draft.uris
+            if finalURIs == draft.originalUris, finalURIs.count < existingURIs.count {
+                finalURIs = existingURIs
+            }
+            if let mainIndex = finalURIs.firstIndex(of: draft.uri), mainIndex != 0 {
+                finalURIs.remove(at: mainIndex)
+                finalURIs.insert(draft.uri, at: 0)
+            } else if draft.uri.isEmpty {
+                finalURIs = []
+            } else if !finalURIs.contains(draft.uri) {
+                finalURIs.insert(draft.uri, at: 0)
+            }
+            metadata["uris"] = finalURIs
             metadata["uri"] = nil
             metadata["description"] = draft.description.isEmpty ? nil : draft.description
             let metadataTarget: (armored: String, id: Any, type: String)
@@ -481,7 +505,7 @@ public actor PassboltAPIClient: PassboltClient {
         default: throw PassboltError.serverError(status)
         }
         let updated = PassboltResource(id: resource.id, name: draft.name, username: draft.username,
-                                       uri: draft.uri, resourceTypeId: typeId)
+                                       uri: draft.uri, uris: draft.uris, resourceTypeId: typeId)
         if let i = index.firstIndex(where: { $0.id == resource.id }) { index[i] = updated } else { index.append(updated) }
         return updated
     }

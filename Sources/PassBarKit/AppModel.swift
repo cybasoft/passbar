@@ -19,6 +19,10 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var errorMessage: String?
     @Published public private(set) var isLoading = false
     @Published public private(set) var copiedField: String?
+    /// Current browser tab, when PassBar can read it.
+    @Published public private(set) var browserContext: BrowserContext?
+    /// Resources whose URI is likely to match the current browser tab.
+    @Published public private(set) var browserMatches: [PassboltResource] = []
     /// Shows the new-credential form in place of the list.
     @Published public var isCreating = false
     /// In-progress new credential; survives the popover closing (e.g. copying from another app). Cleared on lock or save.
@@ -34,16 +38,25 @@ public final class AppModel: ObservableObject {
     private let authenticator: LocalAuthenticator
     private let clipboard: ClipboardManager
     private let makeClient: (URL, String, String?) throws -> PassboltClient
+    private let detectBrowserContext: (String?) -> BrowserContext?
+    private var lastFrontBundleIdentifier: String?
     private var client: PassboltClient?
     private var lastActivity = Date()
     private var inactivityTask: Task<Void, Never>?
     /// First-time setup waiting on an MFA code; secrets are only stored once it succeeds.
     private var pendingSetup: (url: URL, userId: String, privateKey: String, passphrase: String)?
     private static let mfaTimeoutNanoseconds: UInt64 = 120_000_000_000
-    public init(preferences: Preferences, store: SecretStore, authenticator: LocalAuthenticator,
+    public convenience init(preferences: Preferences, store: SecretStore, authenticator: LocalAuthenticator,
                 clipboard: ClipboardManager, makeClient: @escaping (URL, String, String?) throws -> PassboltClient) {
+        self.init(preferences: preferences, store: store, authenticator: authenticator, clipboard: clipboard,
+                  detectBrowserContext: { _ in nil }, makeClient: makeClient)
+    }
+
+    public init(preferences: Preferences, store: SecretStore, authenticator: LocalAuthenticator,
+                clipboard: ClipboardManager, detectBrowserContext: @escaping (String?) -> BrowserContext?,
+                makeClient: @escaping (URL, String, String?) throws -> PassboltClient) {
         self.preferences = preferences; self.store = store; self.authenticator = authenticator
-        self.clipboard = clipboard; self.makeClient = makeClient
+        self.clipboard = clipboard; self.detectBrowserContext = detectBrowserContext; self.makeClient = makeClient
         let configured = (try? store.get(.privateKey)) != nil && !preferences.serverURL.isEmpty
         state = configured ? .locked : .unconfigured
     }
@@ -157,6 +170,7 @@ public final class AppModel: ObservableObject {
         touch()
         startInactivityTimer()
         refreshResults()
+        refreshBrowserContext()
     }
 
     public func lock() async {
@@ -164,7 +178,8 @@ public final class AppModel: ObservableObject {
         inactivityTask?.cancel(); inactivityTask = nil
         pendingSetup = nil
         clipboard.clearIfUnchanged()
-        detail = nil; results = []; query = ""; isCreating = false; draft = NewResource()
+        detail = nil; results = []; browserMatches = []; browserContext = nil
+        query = ""; isCreating = false; draft = NewResource()
         cancelEdit()
         let c = client; client = nil
         await c?.lock()
@@ -198,21 +213,47 @@ public final class AppModel: ObservableObject {
         guard state == .unlocked, let client else { results = []; return }
         let q = query
         let recents = preferences.recentResourceIds
+        let browserMatches = browserMatches
         Task { [weak self] in
             let r = await client.searchResources(query: q)
             guard let self, self.query == q else { return }
-            self.results = Self.limited(r, query: q, recents: recents)
+            self.results = Self.limited(r, query: q, recents: recents, browserMatches: browserMatches)
+        }
+    }
+
+    /// Refresh the active browser tab and resources that match its host.
+    public func refreshBrowserContext(bundleIdentifier: String? = nil) {
+        guard state == .unlocked else { browserContext = nil; browserMatches = []; return }
+        let detector = detectBrowserContext
+        // Later refreshes (e.g. after unlock) run while PassBar itself is frontmost; reuse the last real app.
+        if let bundleIdentifier { lastFrontBundleIdentifier = bundleIdentifier }
+        let frontBundle = lastFrontBundleIdentifier
+        Task.detached { [weak self] in
+            let context = detector(frontBundle)
+            await MainActor.run {
+            guard let self, self.state == .unlocked else { return }
+            self.browserContext = context
+            guard let client = self.client else { self.browserMatches = []; return }
+            Task { [weak self] in
+                let r = await client.searchResources(query: "")
+                guard let self, self.browserContext == context else { return }
+                self.browserMatches = ResourceSearch.matchesBrowser(r, context: context)
+                self.refreshResults()
+            }
+            }
         }
     }
 
     /// Empty query: recently opened first, then the rest alphabetically. Always capped.
-    static func limited(_ all: [PassboltResource], query: String, recents: [String]) -> [PassboltResource] {
+    static func limited(_ all: [PassboltResource], query: String, recents: [String],
+                        browserMatches: [PassboltResource] = []) -> [PassboltResource] {
         let limit = ResourceSearch.listLimit
         guard query.trimmingCharacters(in: .whitespaces).isEmpty else { return Array(all.prefix(limit)) }
         let byId = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         let recent = recents.compactMap { byId[$0] }
-        let recentIds = Set(recent.map(\.id))
-        return Array((recent + all.filter { !recentIds.contains($0.id) }).prefix(limit))
+        let browser = browserMatches.compactMap { byId[$0.id] }
+        let prioritizedIds = Set((browser + recent).map(\.id))
+        return Array((browser + recent + all.filter { !prioritizedIds.contains($0.id) }).prefix(limit))
     }
 
     public func select(_ resource: PassboltResource) async {

@@ -14,6 +14,43 @@ final class SearchTests: XCTestCase {
         XCTAssertEqual(ResourceSearch.filter(items, query: "aws.example").map(\.id), ["1"])
     }
     func testNoMatch() { XCTAssertTrue(ResourceSearch.filter(items, query: "zzz").isEmpty) }
+    func testBrowserMatchesExactHostAndSubdomain() {
+        let exact = PassboltResource(id: "1", name: "Exact", uri: "https://github.com")
+        let subdomain = PassboltResource(id: "2", name: "Subdomain", uri: "https://accounts.github.com")
+        let unrelated = PassboltResource(id: "3", name: "Other", uri: "https://example.com")
+        let context = BrowserContext(url: URL(string: "https://github.com/login")!, browserName: "Safari")
+        XCTAssertEqual(ResourceSearch.matchesBrowser([unrelated, subdomain, exact], context: context).map(\.id), ["1", "2"])
+
+        let subdomainContext = BrowserContext(url: URL(string: "https://accounts.github.com/login")!, browserName: "Safari")
+        XCTAssertEqual(ResourceSearch.matchesBrowser([exact, subdomain], context: subdomainContext).map(\.id), ["2", "1"])
+    }
+    func testBrowserDoesNotMatchUnrelatedHost() {
+        let context = BrowserContext(url: URL(string: "https://gitlab.com/login")!, browserName: "Chrome")
+        let item = PassboltResource(id: "1", name: "GitHub", uri: "https://github.com")
+        XCTAssertTrue(ResourceSearch.matchesBrowser([item], context: context).isEmpty)
+    }
+    func testBrowserMatchesAWSRegionsAndAmazonDomain() {
+        let awsSignin = PassboltResource(id: "1", name: "AWS Regional", uri: "https://us-east-2.signin.aws.amazon.com")
+        let amazon = PassboltResource(id: "2", name: "Amazon", uri: "https://amazon.com")
+        let context = BrowserContext(url: URL(string: "https://us-east-2.signin.aws.amazon.com/oauth")!, browserName: "Chrome")
+        XCTAssertEqual(ResourceSearch.matchesBrowser([amazon, awsSignin], context: context).map(\.id), ["1", "2"])
+    }
+    func testBrowserMatchesAdditionalURI() {
+        let item = PassboltResource(id: "1", name: "AWS", uri: "https://console.aws.amazon.com",
+                                    uris: ["https://console.aws.amazon.com", "https://us-east-2.signin.aws.amazon.com"])
+        let context = BrowserContext(url: URL(string: "https://us-east-2.signin.aws.amazon.com/login")!, browserName: "Safari")
+        XCTAssertEqual(ResourceSearch.matchesBrowser([item], context: context).map(\.id), ["1"])
+    }
+    func testBrowserMatchesSchemeLessAndWildcardURIs() {
+        let schemeLess = PassboltResource(id: "1", name: "Amazon", uri: "amazon.com")
+        let wildcard = PassboltResource(id: "2", name: "AWS Regional",
+                                        uris: ["*.signin.aws.amazon.com", "us-east-2.signin.aws.amazon.com"])
+        let amazonContext = BrowserContext(url: URL(string: "https://amazon.com/login")!, browserName: "Chrome")
+        XCTAssertEqual(ResourceSearch.matchesBrowser([wildcard, schemeLess], context: amazonContext).map(\.id), ["1", "2"])
+
+        let awsContext = BrowserContext(url: URL(string: "https://us-east-2.signin.aws.amazon.com/oauth")!, browserName: "Chrome")
+        XCTAssertEqual(ResourceSearch.matchesBrowser([schemeLess, wildcard], context: awsContext).map(\.id), ["2", "1"])
+    }
 }
 
 final class TOTPTests: XCTestCase {
@@ -251,6 +288,43 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(list.count, ResourceSearch.listLimit)
         XCTAssertEqual(list.prefix(3).map(\.id), ["40", "7", "0"])
         XCTAssertEqual(AppModel.limited(all, query: "n", recents: ["40"]).map(\.id), (0..<25).map(String.init))
+    }
+
+    func testDefaultListPrioritizesBrowserMatchesOverRecents() {
+        let all = [
+            PassboltResource(id: "aws", name: "AWS"),
+            PassboltResource(id: "recent", name: "Recent"),
+        ]
+        let list = AppModel.limited(all, query: "", recents: ["recent"], browserMatches: [all[0]])
+        XCTAssertEqual(list.map(\.id), ["aws", "recent"])
+    }
+
+    func testBrowserMatchesSurviveTypingAndReuseLastFrontApp() async throws {
+        var seen: [String?] = []
+        let defaults = UserDefaults(suiteName: "test.\(UUID().uuidString)")!
+        let m = AppModel(preferences: Preferences(defaults: defaults), store: InMemorySecretStore(),
+                         authenticator: AllowAuth(), clipboard: ClipboardManager(pasteboard: FakePasteboard(), sleep: { _ in }),
+                         detectBrowserContext: { id in
+                             seen.append(id)
+                             return BrowserContext(url: URL(string: "https://github.com/login")!, browserName: "Chrome")
+                         },
+                         makeClient: { url, uid, fp in
+                             try PassboltAPIClient(serverURL: url, userId: uid, pinnedFingerprint: fp,
+                                                   transport: MockTransport.standard(), pgp: MockPGP())
+                         })
+        await m.configure(serverURL: "https://passbolt.example", userId: uid, privateKey: "PRIV:user", passphrase: "p")
+        m.refreshBrowserContext(bundleIdentifier: "com.google.Chrome")
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(m.browserMatches.map(\.id), ["r2"])
+        XCTAssertEqual(m.results.first?.id, "r2")
+
+        m.query = "aws"
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(m.browserMatches.map(\.id), ["r2"])
+
+        m.refreshBrowserContext()
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(seen.last, "com.google.Chrome")
     }
 
     func testSelectRecordsRecentAndCapsHistory() async throws {

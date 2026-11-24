@@ -14,6 +14,7 @@
 		208652E021D9B3D280C5E6A0 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C5BDC0B3F0049A334C44F66 /* SearchView.swift */; };
 		456E629A4F5E1EA44191F76F /* HotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6681714BCAAB02D7D98708DD /* HotKeyManager.swift */; };
 		5704AF93239D2889B9605B50 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F71D13325AB1B95644025F68 /* RootView.swift */; };
+		7A78BFAF0D713807621D82CE /* BrowserContextDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709637BC05292EA259FFC3DA /* BrowserContextDetector.swift */; };
 		B3169F2C56120CE7600766D4 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BDE0B1ED21D4ED0F92A34C1 /* SetupView.swift */; };
 		C5024453CCF7A964D6C46216 /* PassBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38CFAFB2D5723E5180DE29A7 /* PassBarApp.swift */; };
 		ED8D072397593BC660A35C52 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D74A3526E7B9E3F338ADD4 /* SettingsView.swift */; };
@@ -28,10 +29,11 @@
 		38CFAFB2D5723E5180DE29A7 /* PassBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassBarApp.swift; sourceTree = "<group>"; };
 		43C8B071CB94B2377E74C816 /* PassBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PassBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		45B276C2F0489F54E084C297 /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
+		5F6B9B24E1D654464A37AD11 /* app */ = {isa = PBXFileReference; lastKnownFileType = folder; name = app; path = .; sourceTree = SOURCE_ROOT; };
 		65274EC47D6A35DD53E05044 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		6681714BCAAB02D7D98708DD /* HotKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyManager.swift; sourceTree = "<group>"; };
 		708104FFE13C404315DB45E5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		8B37B42276CFF659E4605FD6 /* passbar */ = {isa = PBXFileReference; lastKnownFileType = folder; name = passbar; path = .; sourceTree = SOURCE_ROOT; };
+		709637BC05292EA259FFC3DA /* BrowserContextDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserContextDetector.swift; sourceTree = "<group>"; };
 		9C5BDC0B3F0049A334C44F66 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		B503CDC68BB3CAC89FD2D92D /* PassBar.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PassBar.entitlements; sourceTree = "<group>"; };
 		F71D13325AB1B95644025F68 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -52,7 +54,7 @@
 		0EF345A75A38F35DF0E7B7D4 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				8B37B42276CFF659E4605FD6 /* passbar */,
+				5F6B9B24E1D654464A37AD11 /* app */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -70,6 +72,7 @@
 			children = (
 				65274EC47D6A35DD53E05044 /* AppDelegate.swift */,
 				708104FFE13C404315DB45E5 /* Assets.xcassets */,
+				709637BC05292EA259FFC3DA /* BrowserContextDetector.swift */,
 				2B4A73910B9045E02C29A9E6 /* CreateView.swift */,
 				45B276C2F0489F54E084C297 /* DetailView.swift */,
 				6681714BCAAB02D7D98708DD /* HotKeyManager.swift */,
@@ -170,6 +173,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0DF82960329558FCD23AB142 /* AppDelegate.swift in Sources */,
+				7A78BFAF0D713807621D82CE /* BrowserContextDetector.swift in Sources */,
 				03BE051D84956995E1FA3F54 /* CreateView.swift in Sources */,
 				0A00E12F6655C7542487D84D /* DetailView.swift in Sources */,
 				456E629A4F5E1EA44191F76F /* HotKeyManager.swift in Sources */,

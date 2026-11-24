@@ -4,8 +4,24 @@
 <dict>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
 	<key>com.apple.security.files.user-selected.read-only</key>
 	<true/>
+	<key>com.apple.security.temporary-exception.apple-events</key>
+	<array>
+		<string>com.apple.Safari</string>
+		<string>com.apple.SafariTechnologyPreview</string>
+		<string>com.google.Chrome</string>
+		<string>com.google.Chrome.beta</string>
+		<string>com.google.Chrome.canary</string>
+		<string>org.chromium.Chromium</string>
+		<string>com.brave.Browser</string>
+		<string>com.microsoft.edgemac</string>
+		<string>company.thebrowser.Browser</string>
+		<string>com.vivaldi.Vivaldi</string>
+		<string>com.operasoftware.Opera</string>
+	</array>
 	<key>com.apple.security.network.client</key>
 	<true/>
 </dict>
