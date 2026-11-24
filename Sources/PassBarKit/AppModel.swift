@@ -34,7 +34,7 @@ public final class AppModel: ObservableObject {
     public private(set) var shouldAutoPromptUnlock = true
 
     /// Shown when filling needs the Accessibility permission; the UI offers a shortcut to the setting.
-    public static let accessibilityRequiredMessage = "Allow PassBar in Privacy & Security → Accessibility, then try again."
+    public static let accessibilityRequiredMessage = "Allow PassBar in Accessibility settings. If it is already listed, remove it (−) and add it again."
 
     /// Fills the current browser tab; returns nil on success or a user-facing error. Set by the app.
     public var fillBrowser: @Sendable (BrowserContext, String, String) -> String? = { _, _, _ in

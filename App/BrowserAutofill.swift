@@ -25,8 +25,8 @@ enum BrowserAutofill {
               let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first else {
             return "Open a supported browser tab to fill this credential."
         }
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
-        guard AXIsProcessTrustedWithOptions(options) else {
+        guard AXIsProcessTrusted() else {
+            requestAccessibilityOnce()
             return AppModel.accessibilityRequiredMessage
         }
 
@@ -45,6 +45,16 @@ enum BrowserAutofill {
         if let element = target.username, !username.isEmpty { focusAndType(username, in: element) }
         if let element = target.password, !password.isEmpty { focusAndType(password, in: element) }
         return nil
+    }
+
+    private static var requestedAccessibility = false
+
+    /// The system prompt registers PassBar in the Accessibility list; repeating it on every click is just noise.
+    private static func requestAccessibilityOnce() {
+        guard !requestedAccessibility else { return }
+        requestedAccessibility = true
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(options)
     }
 
     // MARK: Finding fields
