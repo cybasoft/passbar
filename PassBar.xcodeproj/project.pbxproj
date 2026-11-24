@@ -12,6 +12,7 @@
 		0DF82960329558FCD23AB142 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65274EC47D6A35DD53E05044 /* AppDelegate.swift */; };
 		11C1363A8D227ED2D0EE55DE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 708104FFE13C404315DB45E5 /* Assets.xcassets */; };
 		208652E021D9B3D280C5E6A0 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C5BDC0B3F0049A334C44F66 /* SearchView.swift */; };
+		22FCC6C94887BDC5A6FE935C /* BrowserAutofill.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8B033734A027348B9AD8E32 /* BrowserAutofill.swift */; };
 		456E629A4F5E1EA44191F76F /* HotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6681714BCAAB02D7D98708DD /* HotKeyManager.swift */; };
 		5704AF93239D2889B9605B50 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F71D13325AB1B95644025F68 /* RootView.swift */; };
 		7A78BFAF0D713807621D82CE /* BrowserContextDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709637BC05292EA259FFC3DA /* BrowserContextDetector.swift */; };
@@ -36,6 +37,7 @@
 		709637BC05292EA259FFC3DA /* BrowserContextDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserContextDetector.swift; sourceTree = "<group>"; };
 		9C5BDC0B3F0049A334C44F66 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		B503CDC68BB3CAC89FD2D92D /* PassBar.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PassBar.entitlements; sourceTree = "<group>"; };
+		B8B033734A027348B9AD8E32 /* BrowserAutofill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserAutofill.swift; sourceTree = "<group>"; };
 		F71D13325AB1B95644025F68 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -72,6 +74,7 @@
 			children = (
 				65274EC47D6A35DD53E05044 /* AppDelegate.swift */,
 				708104FFE13C404315DB45E5 /* Assets.xcassets */,
+				B8B033734A027348B9AD8E32 /* BrowserAutofill.swift */,
 				709637BC05292EA259FFC3DA /* BrowserContextDetector.swift */,
 				2B4A73910B9045E02C29A9E6 /* CreateView.swift */,
 				45B276C2F0489F54E084C297 /* DetailView.swift */,
@@ -173,6 +176,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0DF82960329558FCD23AB142 /* AppDelegate.swift in Sources */,
+				22FCC6C94887BDC5A6FE935C /* BrowserAutofill.swift in Sources */,
 				7A78BFAF0D713807621D82CE /* BrowserContextDetector.swift in Sources */,
 				03BE051D84956995E1FA3F54 /* CreateView.swift in Sources */,
 				0A00E12F6655C7542487D84D /* DetailView.swift in Sources */,

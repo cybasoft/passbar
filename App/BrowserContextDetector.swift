@@ -2,14 +2,16 @@ import AppKit
 import PassBarKit
 
 struct BrowserContextDetector {
-    private struct Browser {
+    struct Browser {
         let bundleId: String
         let name: String
+        let isSafari: Bool
         let script: String
 
         init(_ bundleId: String, _ name: String, safari: Bool = false) {
             self.bundleId = bundleId
             self.name = name
+            self.isSafari = safari
             let tab = safari ? "current tab" : "active tab"
             script = """
             tell application id "\(bundleId)"
@@ -21,8 +23,7 @@ struct BrowserContextDetector {
         }
     }
 
-    /// Keep in sync with `com.apple.security.temporary-exception.apple-events` in PassBar.entitlements.
-    private static let browsers: [Browser] = [
+    static let browsers: [Browser] = [
         Browser("com.apple.Safari", "Safari", safari: true),
         Browser("com.apple.SafariTechnologyPreview", "Safari Technology Preview", safari: true),
         Browser("com.google.Chrome", "Chrome"),
@@ -43,34 +44,41 @@ struct BrowserContextDetector {
             + browsers.filter { $0.bundleId != bundleIdentifier }
 
         for browser in ordered where running.contains(browser.bundleId) {
-            guard let urlText = runAppleScript(browser.script, label: browser.name),
+            guard let urlText = runAppleScript(browser.script, label: browser.name).value,
                   let url = URL(string: urlText),
                   ["http", "https"].contains(url.scheme?.lowercased()) else { continue }
-            return BrowserContext(url: url, browserName: browser.name)
+            return BrowserContext(url: url, browserName: browser.name, bundleIdentifier: browser.bundleId)
         }
         return nil
     }
 
-    /// Runs in-process (the sandbox does not reliably carry Apple event rights to an `osascript` child).
-    private static func runAppleScript(_ source: String, label: String) -> String? {
+    struct ScriptOutcome {
+        var value: String?
+        var errorCode: Int?
+    }
+
+    /// Runs in-process so the Automation permission belongs to PassBar. The source is never logged.
+    static func runAppleScript(_ source: String, label: String, timeout: TimeInterval = 2.0) -> ScriptOutcome {
         let result = Box()
         let done = DispatchSemaphore(value: 0)
         DispatchQueue.global(qos: .userInitiated).async {
             var error: NSDictionary?
             let descriptor = NSAppleScript(source: source)?.executeAndReturnError(&error)
             if let error {
-                let code = error[NSAppleScript.errorNumber] ?? "unknown"
-                NSLog("PassBar browser context: %@ script failed (%@)", label, "\(code)")
+                let code = (error[NSAppleScript.errorNumber] as? Int) ?? 0
+                result.outcome.errorCode = code
+                NSLog("PassBar browser script: %@ failed (%d)", label, code)
             }
-            result.value = descriptor?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = descriptor?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+            result.outcome.value = text.flatMap { $0.isEmpty ? nil : $0 }
             done.signal()
         }
         // A first-run Automation prompt can block the script; don't hold up the UI for it.
-        guard done.wait(timeout: .now() + 2.0) == .success else { return nil }
-        return result.value.flatMap { $0.isEmpty ? nil : $0 }
+        guard done.wait(timeout: .now() + timeout) == .success else { return ScriptOutcome(value: nil, errorCode: -1) }
+        return result.outcome
     }
 
     private final class Box: @unchecked Sendable {
-        var value: String?
+        var outcome = ScriptOutcome()
     }
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Suggest credentials matching the current browser tab.
+- Click a credential to fill the login fields on the current page, or use "Use on this page" from its details. Requires the Accessibility permission.
+- PassBar is no longer sandboxed, which macOS requires for Accessibility. Existing settings are migrated automatically.
+
 ## 1.0.1
 
 - Remember multi-factor authentication for 30 days when requested.

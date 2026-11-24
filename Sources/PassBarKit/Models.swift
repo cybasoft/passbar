@@ -3,10 +3,12 @@ import Foundation
 public struct BrowserContext: Equatable, Sendable {
     public let url: URL
     public let browserName: String
+    public let bundleIdentifier: String?
 
-    public init(url: URL, browserName: String) {
+    public init(url: URL, browserName: String, bundleIdentifier: String? = nil) {
         self.url = url
         self.browserName = browserName
+        self.bundleIdentifier = bundleIdentifier
     }
 
     public var host: String? { url.host?.lowercased() }

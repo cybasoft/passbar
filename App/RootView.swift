@@ -13,11 +13,11 @@ struct RootView: View {
             case .awaitingMFA: MFAView(model: model)
             case .unlocked:
                 if model.editingResource != nil { CreateView(model: model) }
-                else if let detail = model.detail { DetailView(model: model, detail: detail) }
+                else if let detail = model.detail { DetailView(model: model, detail: detail, actions: actions) }
                 else if model.isCreating { CreateView(model: model) }
                 else { SearchView(model: model, actions: actions) }
             }
-            if let err = model.errorMessage { ErrorBar(message: err) { model.dismissError() } }
+            if let err = model.errorMessage { ErrorBar(message: err, actions: actions) { model.dismissError() } }
             FooterBar(model: model, actions: actions)
         }
         .frame(width: 360, height: 480)
@@ -35,12 +35,17 @@ struct RootView: View {
 
 struct ErrorBar: View {
     let message: String
+    let actions: AppActions
     let dismiss: () -> Void
     var body: some View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
             Text(message).font(.callout).lineLimit(2)
             Spacer()
+            if message == AppModel.accessibilityRequiredMessage {
+                Button("Open Settings") { actions.openAccessibility() }
+                    .buttonStyle(.bordered).controlSize(.small)
+            }
             Button(action: dismiss) { Image(systemName: "xmark") }.buttonStyle(.plain).accessibilityLabel("Dismiss error")
         }
         .padding(8).background(.quaternary)

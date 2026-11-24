@@ -120,6 +120,25 @@ final class ClipboardTests: XCTestCase {
 struct AllowAuth: LocalAuthenticator { func authenticate(reason: String) async throws {} }
 struct DenyAuth: LocalAuthenticator { func authenticate(reason: String) async throws { throw PassboltError.biometricsFailed } }
 
+final class FilledBox: @unchecked Sendable { var value: (String, String, String)? }
+
+final class PreferencesMigrationTests: XCTestCase {
+    func testMigratesLegacySandboxSettingsOnce() throws {
+        let plist = FileManager.default.temporaryDirectory.appendingPathComponent("legacy-\(UUID().uuidString).plist")
+        defer { try? FileManager.default.removeItem(at: plist) }
+        let legacy: NSDictionary = ["serverURL": "https://old.example", "userId": "u1", "autoLockMinutes": 15.0]
+        XCTAssertTrue(legacy.write(to: plist, atomically: true))
+
+        let defaults = UserDefaults(suiteName: "test.\(UUID().uuidString)")!
+        let migrated = Preferences(defaults: defaults, legacyPlist: plist)
+        XCTAssertEqual(migrated.serverURL, "https://old.example")
+        XCTAssertEqual(migrated.autoLockMinutes, 15)
+
+        defaults.set("https://new.example", forKey: "serverURL")
+        XCTAssertEqual(Preferences(defaults: defaults, legacyPlist: plist).serverURL, "https://new.example")
+    }
+}
+
 @MainActor
 final class AppModelTests: XCTestCase {
     func makeModel(auth: LocalAuthenticator = AllowAuth(), store: InMemorySecretStore = InMemorySecretStore(),
@@ -325,6 +344,39 @@ final class AppModelTests: XCTestCase {
         m.refreshBrowserContext()
         try await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertEqual(seen.last, "com.google.Chrome")
+    }
+
+    func testFillPageSendsCredentialAndRefusesInsecurePages() async throws {
+        let defaults = UserDefaults(suiteName: "test.\(UUID().uuidString)")!
+        var url = "https://aws.example.com/login"
+        let m = AppModel(preferences: Preferences(defaults: defaults), store: InMemorySecretStore(),
+                         authenticator: AllowAuth(), clipboard: ClipboardManager(pasteboard: FakePasteboard(), sleep: { _ in }),
+                         detectBrowserContext: { _ in BrowserContext(url: URL(string: url)!, browserName: "Chrome") },
+                         makeClient: { u, uid, fp in
+                             try PassboltAPIClient(serverURL: u, userId: uid, pinnedFingerprint: fp,
+                                                   transport: MockTransport.standard(), pgp: MockPGP())
+                         })
+        let filled = FilledBox()
+        m.fillBrowser = { ctx, user, pass in filled.value = (ctx.host ?? "", user, pass); return nil }
+        await m.configure(serverURL: "https://passbolt.example", userId: uid, privateKey: "PRIV:user", passphrase: "p")
+        m.refreshBrowserContext()
+        try await Task.sleep(nanoseconds: 200_000_000)
+        let r = try XCTUnwrap(m.results.first { $0.id == "r1" })
+        let ok = await m.fillPage(r)
+        XCTAssertTrue(ok)
+        XCTAssertEqual(filled.value?.0, "aws.example.com")
+        XCTAssertEqual(filled.value?.1, r.username)
+        XCTAssertFalse(filled.value?.2.isEmpty ?? true)
+        XCTAssertEqual(m.preferences.recentResourceIds.first, "r1")
+
+        filled.value = nil
+        url = "http://aws.example.com/login"
+        m.refreshBrowserContext()
+        try await Task.sleep(nanoseconds: 200_000_000)
+        let insecure = await m.fillPage(r)
+        XCTAssertFalse(insecure)
+        XCTAssertNil(filled.value)
+        XCTAssertNotNil(m.errorMessage)
     }
 
     func testSelectRecordsRecentAndCapsHistory() async throws {

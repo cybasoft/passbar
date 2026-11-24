@@ -11,14 +11,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let hotKey = HotKeyManager()
 
     let model: AppModel = {
-        let prefs = Preferences()
-        return AppModel(preferences: prefs, store: KeychainSecretStore(), authenticator: SystemAuthenticator(),
+        let legacy = Bundle.main.bundleIdentifier.map(Preferences.legacySandboxPlist(bundleIdentifier:))
+        let prefs = Preferences(legacyPlist: legacy)
+        let model = AppModel(preferences: prefs, store: KeychainSecretStore(), authenticator: SystemAuthenticator(),
                         clipboard: ClipboardManager(pasteboard: SystemPasteboard()),
                         detectBrowserContext: { BrowserContextDetector.detect(bundleIdentifier: $0) },
                         makeClient: { url, uid, fp in
                             try PassboltAPIClient(serverURL: url, userId: uid, pinnedFingerprint: fp,
                                                   transport: URLSessionTransport(), pgp: GopenPGPProvider())
                         })
+        return model
     }()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -33,6 +35,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.contentSize = NSSize(width: 360, height: 480)
         popover.contentViewController = NSHostingController(rootView: RootView(model: model, actions: actions))
 
+        model.fillBrowser = { [weak self] context, username, password in
+            BrowserAutofill.fill(context: context, username: username, password: password) {
+                DispatchQueue.main.sync { self?.popover.performClose(nil) }
+            }
+        }
         model.$state.sink { [weak self] in self?.updateIcon($0) }.store(in: &cancellables)
         model.preferences.$hotKey.sink { [weak self] in self?.registerHotKey($0) }.store(in: &cancellables)
     }
@@ -46,11 +53,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                    openSettings: { [weak self] in self?.showSettings() },
                    openServer: { [weak self] in self?.openServer() },
                    openBrowserAutomation: { [weak self] in self?.openBrowserAutomation() },
+                   openAccessibility: { [weak self] in self?.openAccessibility() },
                    quit: { NSApp.terminate(nil) })
     }
 
     private func openBrowserAutomation() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func openAccessibility() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
     }
@@ -110,5 +124,6 @@ struct AppActions {
     var openSettings: () -> Void
     var openServer: () -> Void
     var openBrowserAutomation: () -> Void
+    var openAccessibility: () -> Void
     var quit: () -> Void
 }

@@ -33,6 +33,14 @@ public final class AppModel: ObservableObject {
     /// True only until the first unlock attempt: after any lock the user must unlock explicitly.
     public private(set) var shouldAutoPromptUnlock = true
 
+    /// Shown when filling needs the Accessibility permission; the UI offers a shortcut to the setting.
+    public static let accessibilityRequiredMessage = "Allow PassBar in Privacy & Security → Accessibility, then try again."
+
+    /// Fills the current browser tab; returns nil on success or a user-facing error. Set by the app.
+    public var fillBrowser: @Sendable (BrowserContext, String, String) -> String? = { _, _, _ in
+        "Filling pages isn't available."
+    }
+
     public let preferences: Preferences
     private let store: SecretStore
     private let authenticator: LocalAuthenticator
@@ -264,6 +272,31 @@ public final class AppModel: ObservableObject {
             preferences.recordRecent(resource.id)
         } catch {
             await handleFailure(error)
+        }
+    }
+
+    /// Fills username and password on the current browser page. Returns true on success.
+    public func fillPage(_ resource: PassboltResource, secret: ResourceSecret? = nil) async -> Bool {
+        touch(); errorMessage = nil
+        guard let context = browserContext else { errorMessage = "No browser page detected."; return false }
+        let host = context.host ?? ""
+        guard context.url.scheme?.lowercased() == "https" || host == "localhost" else {
+            errorMessage = "PassBar won't fill credentials on an insecure (http) page."
+            return false
+        }
+        guard let client else { return false }
+        do {
+            let loaded: ResourceSecret
+            if let secret { loaded = secret } else { loaded = try await client.getSecret(for: resource) }
+            let fill = fillBrowser
+            let username = resource.username, password = loaded.password ?? ""
+            let failure = await Task.detached { fill(context, username, password) }.value
+            if let failure { errorMessage = failure; return false }
+            preferences.recordRecent(resource.id)
+            return true
+        } catch {
+            await handleFailure(error)
+            return false
         }
     }
 

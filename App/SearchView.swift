@@ -54,7 +54,7 @@ struct SearchView: View {
             TextField("Search", text: $model.query)
                 .textFieldStyle(.plain).font(.system(size: 16))
                 .focused($focused)
-                .onSubmit { open(highlighted) }
+                .onSubmit { use(highlighted) }
                 .onKeyPress(.downArrow) { move(1); return .handled }
                 .onKeyPress(.upArrow) { move(-1); return .handled }
                 .onKeyPress(.escape) { actions.close(); return .handled }
@@ -75,9 +75,9 @@ struct SearchView: View {
                     ScrollView {
                         VStack(spacing: 0) {
                             ForEach(Array(model.results.enumerated()), id: \.element.id) { i, r in
-                                Row(resource: r, selected: i == highlighted, showDivider: i < model.results.count - 1)
+                                Row(resource: r, selected: i == highlighted, showDivider: i < model.results.count - 1,
+                                    onUse: { use(i) }, onDetails: { open(i) })
                                     .id(r.id)
-                                    .onTapGesture { open(i) }
                             }
                         }
                         .padding(.vertical, 4)
@@ -98,6 +98,14 @@ struct SearchView: View {
         model.touch()
     }
 
+    /// Fills the current page when a browser tab is known, otherwise shows the details.
+    private func use(_ i: Int) {
+        guard model.results.indices.contains(i) else { return }
+        guard model.browserContext != nil else { open(i); return }
+        let r = model.results[i]
+        Task { if await model.fillPage(r) { actions.close() } }
+    }
+
     private func open(_ i: Int) {
         guard model.results.indices.contains(i) else { return }
         let r = model.results[i]
@@ -108,6 +116,8 @@ struct SearchView: View {
         let resource: PassboltResource
         let selected: Bool
         let showDivider: Bool
+        let onUse: () -> Void
+        let onDetails: () -> Void
         var body: some View {
             HStack(spacing: 12) {
                 ResourceIcon(name: resource.name)
@@ -118,13 +128,17 @@ struct SearchView: View {
                     }
                 }
                 Spacer(minLength: 4)
-                Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(.tertiary)
+                Button(action: onDetails) {
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
+                        .frame(width: 36, height: 40).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).accessibilityLabel("Details for \(resource.name)")
             }
-            .padding(.horizontal, 12).padding(.vertical, 8)
+            .padding(.leading, 12).padding(.trailing, 4).padding(.vertical, 8)
             .background(selected ? Color.accentColor.opacity(0.22) : .clear)
             .overlay(alignment: .bottom) { if showDivider { Divider().padding(.leading, 64) } }
             .contentShape(Rectangle())
-            .accessibilityElement(children: .combine)
+            .onTapGesture(perform: onUse)
         }
     }
 }

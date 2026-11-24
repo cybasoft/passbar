@@ -17,7 +17,21 @@ public final class Preferences: ObservableObject {
     /// Most recently opened resource IDs (non-secret), newest first.
     public private(set) var recentResourceIds: [String] { didSet { defaults.set(recentResourceIds, forKey: "recentResourceIds") } }
 
-    public init(defaults: UserDefaults = .standard) {
+    private static let migratedKeys = ["serverURL", "userId", "serverFingerprint", "keyFingerprint",
+                                       "clipboardTimeout", "autoLockMinutes", "hotKey", "recentResourceIds"]
+
+    /// Where earlier, sandboxed releases kept their settings.
+    public static func legacySandboxPlist(bundleIdentifier: String) -> URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Containers/\(bundleIdentifier)/Data/Library/Preferences/\(bundleIdentifier).plist")
+    }
+
+    /// Copies settings from `legacyPlist` once, only when none are set yet.
+    public init(defaults: UserDefaults = .standard, legacyPlist: URL? = nil) {
+        if let legacyPlist, defaults.object(forKey: "serverURL") == nil,
+           let old = NSDictionary(contentsOf: legacyPlist) as? [String: Any] {
+            for key in Self.migratedKeys { if let value = old[key] { defaults.set(value, forKey: key) } }
+        }
         self.defaults = defaults
         serverURL = defaults.string(forKey: "serverURL") ?? ""
         userId = defaults.string(forKey: "userId") ?? ""

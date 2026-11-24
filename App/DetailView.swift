@@ -4,6 +4,7 @@ import PassBarKit
 struct DetailView: View {
     @ObservedObject var model: AppModel
     let detail: ResourceDetail
+    let actions: AppActions
     @State private var revealPassword = false
     @State private var revealTOTP = false
 
@@ -35,6 +36,16 @@ struct DetailView: View {
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 2)
+            }
+            if model.browserContext != nil {
+                Button {
+                    Task { if await model.fillPage(detail.resource, secret: detail.secret) { actions.close() } }
+                } label: {
+                    Text("Use on this page").font(.system(size: 15, weight: .semibold)).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent).controlSize(.large)
+                .keyboardShortcut(.defaultAction)
+                .padding(.horizontal, 12).padding(.vertical, 10)
             }
             // Cmd+C copies the password; Cmd+Shift+C the username.
             Group {
